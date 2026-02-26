@@ -13,7 +13,7 @@
         Manage Games
     </a>
 
-    <a href="../auth/logout.php" class="text-danger">
+    <a href="auth/logout.php" class="text-danger">
         Logout
     </a>
 </div>

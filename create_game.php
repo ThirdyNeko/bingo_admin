@@ -18,12 +18,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = "All fields are required.";
     } else {
         $gameCode = generateGameCode();
+
         $insert = $pdo->prepare("
             INSERT INTO game (pattern, winners, game_winners, game_code)
             VALUES (?, ?, 0, ?)
         ");
         $insert->execute([$pattern_json, $winners, $gameCode]);
-        $success = "Game Created Successfully! Code: $gameCode";
+
+        // ✅ Get inserted game ID
+        $gameId = $pdo->lastInsertId();
+
+        // ✅ Redirect to manage page
+        header("Location: manage_game.php?game_id=" . $gameId);
+        exit;
     }
 }
 ?>

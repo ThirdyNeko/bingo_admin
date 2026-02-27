@@ -1,7 +1,7 @@
 <div class="col-md-2 sidebar p-3">
     <h4 class="text-center">🎯 BINGO ADMIN</h4>
     <hr>
-    <a href="index.php" class="<?= basename($_SERVER['PHP_SELF'])=='dashboard.php'?'active-link':'' ?>">
+    <a href="index.php" class="<?= basename($_SERVER['PHP_SELF'])=='index.php'?'active-link':'' ?>">
         Dashboard
     </a>
 

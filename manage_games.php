@@ -17,14 +17,22 @@ $games = $pdo->query("SELECT * FROM game ORDER BY id DESC")->fetchAll();
                         <th>Game Code</th>
                         <th>Winners Needed</th>
                         <th>Winners Declared</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
+
                 <tbody>
                     <?php foreach($games as $g): ?>
                         <tr>
                             <td><?= htmlspecialchars($g['game_code']) ?></td>
                             <td><?= $g['winners'] ?></td>
                             <td><?= $g['game_winners'] ?></td>
+                            <td>
+                                <a href="manage_game.php?game_id=<?= $g['id'] ?>"
+                                class="btn btn-sm btn-primary">
+                                    Manage
+                                </a>
+                            </td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>

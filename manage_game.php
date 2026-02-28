@@ -210,17 +210,15 @@ function generateRandomBingoCard() {
                                 <span class="text-success fw-bold">Game Started ✅</span>
                             </div>
                         <?php endif; ?>
-                        <?php if ($game['started']): ?>
-                            <div class="mt-3">
-                                <a href="screen.php?game_id=<?= $gameId ?>" target="_blank" 
-                                class="btn btn-lg btn-primary w-100">
-                                    🎬 Show Screen
-                                </a>
-                            </div>
-                        <?php endif; ?>
                     </div>
 
                 <?php endif; ?>
+                <div class="mt-3">
+                    <a href="screen.php?game_id=<?= $gameId ?>" target="_blank" 
+                    class="btn btn-lg btn-dark w-100">
+                        🎬 Open Game Screen
+                    </a>
+                </div>
             </div>
         </div>
     </div>

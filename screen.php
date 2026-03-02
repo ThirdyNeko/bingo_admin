@@ -32,6 +32,107 @@ $registerUrl = "https://192.168.40.14/bingo/index.php?game_code=" . urlencode($g
 $qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" . urlencode($registerUrl);
 
 $started = (int)$game['started'] === 1;
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
+
+    // 1️⃣ Next winner
+    $queueStmt = $pdo->prepare("
+        SELECT * FROM game_winner_queue
+        WHERE game_id = ? AND claimed = 0
+        ORDER BY level ASC
+        LIMIT 1
+    ");
+    $queueStmt->execute([$gameId]);
+    $queuedWinner = $queueStmt->fetch();
+    if (!$queuedWinner) die("No queued winner found.");
+
+    $cardId = $queuedWinner['card_id'];
+
+    // 2️⃣ Get winner's card
+    $cardStmt = $pdo->prepare("
+        SELECT card_data 
+        FROM user_cards 
+        WHERE id = ?
+    ");
+    $cardStmt->execute([$cardId]);
+    $cardData = json_decode($cardStmt->fetchColumn(), true);
+
+    // 3️⃣ Get pattern
+    $pattern = json_decode($game['pattern'], true);
+
+    // 4️⃣ Already drawn numbers (create if missing)
+    $drawnNumbers = json_decode($game['drawn_numbers'] ?? '[]', true);
+
+    // 5️⃣ Map pattern to actual numbers
+    $letters = ['B','I','N','G','O'];
+    $neededNumbers = [];
+    foreach ($pattern as $row => $cols) {
+        foreach ($cols as $col => $val) {
+            if ($val == 1) {
+                $number = $cardData[$letters[$col]][$row] ?? null;
+                if ($number !== null && $number !== "FREE" && !in_array($number, $drawnNumbers)) {
+                    $neededNumbers[] = $number;
+                }
+            }
+        }
+    }
+
+    // 6️⃣ Available numbers for filler
+    $allNumbers = range(1,75);
+    $availableNumbers = array_diff($allNumbers, $drawnNumbers);
+
+    // 7️⃣ Controlled randomness
+    $drawCount = (int) ($game['draw_count'] ?? 0);
+    $progressChance = min(20 + ($drawCount * 5), 80);
+
+    if (!empty($neededNumbers) && rand(1,100) <= $progressChance) {
+        $number = $neededNumbers[array_rand($neededNumbers)]; // 🎯 needed
+    } else {
+        $number = $availableNumbers[array_rand($availableNumbers)]; // 🎲 filler
+    }
+
+    $drawnNumbers[] = $number;
+
+    // 8️⃣ Update game table (make sure columns exist!)
+    $pdo->prepare("
+        UPDATE game
+        SET drawn_numbers = ?, draw_count = draw_count + 1
+        WHERE id = ?
+    ")->execute([
+        json_encode($drawnNumbers),
+        $gameId
+    ]);
+
+    // 9️⃣ Check if winner completed pattern
+    $patternNumbers = [];
+    foreach ($pattern as $row => $cols) {
+        foreach ($cols as $col => $val) {
+            if ($val == 1) {
+                $n = $cardData[$letters[$col]][$row] ?? null;
+                if ($n !== null && $n !== "FREE") $patternNumbers[] = $n;
+            }
+        }
+    }
+
+    if (empty(array_diff($patternNumbers, $drawnNumbers))) {
+        // Mark as claimed
+        $pdo->prepare("
+            UPDATE game_winner_queue 
+            SET claimed = 1
+            WHERE id = ?
+        ")->execute([$queuedWinner['id']]);
+
+        // Increment game_winners
+        $pdo->prepare("
+            UPDATE game
+            SET game_winners = game_winners + 1
+            WHERE id = ?
+        ")->execute([$gameId]);
+    }
+
+    header("Location: screen.php?game_id=" . $gameId);
+    exit;
+}
 ?>
 
 <!DOCTYPE html>
@@ -102,12 +203,26 @@ $started = (int)$game['started'] === 1;
                 </p>
 
                 <h4 class="mt-4">
-                    Winners Required: <?= $game['winners'] ?>
+                    Potential Winners: <?= $game['winners'] ?>
                 </h4>
 
-                <h4>
-                    Current Winners: <?= $game['game_winners'] ?>
-                </h4>
+                <form method="POST" class="mt-4">
+                    <button type="submit" name="draw_number" class="btn btn-lg btn-success px-5">
+                        🎱 Draw Number
+                    </button>
+                </form>
+                <?php
+                $drawnNumbers = json_decode($game['drawn_numbers'] ?? '[]', true);
+                $lastNumber = end($drawnNumbers); // Get the most recent drawn number
+                ?>
+                <?php if ($lastNumber): ?>
+                    <div class="my-4">
+                        <h2 class="display-1 text-warning">
+                            🎱 <?= $lastNumber ?>
+                        </h2>
+                        <p class="lead">Last number drawn</p>
+                    </div>
+                <?php endif; ?>
 
             </div>
 

@@ -51,6 +51,45 @@ $playersStmt = $pdo->prepare("
 $playersStmt->execute([$gameId]);
 $players = $playersStmt->fetchAll();
 
+function calculatePriorityWeight($wins, $department) {
+
+    // Base weight
+    $weight = 100;
+
+    // More wins = lower priority
+    $weight -= ($wins * 10);   // Each win reduces chance
+
+    if (strtolower($department) === 'softdev'|| strtolower($department) === 'soft dev') {
+        $weight += 30; 
+    }
+
+    // Never allow zero or negative
+    return max($weight, 10);
+}
+
+function weightedRandomPick(&$items) {
+
+    $totalWeight = array_sum(array_column($items, 'weight'));
+    $rand = mt_rand(1, $totalWeight);
+
+    foreach ($items as $index => $item) {
+
+        $rand -= $item['weight'];
+
+        if ($rand <= 0) {
+            $picked = $item;
+
+            // remove so it can't repeat
+            unset($items[$index]);
+            $items = array_values($items);
+
+            return $picked['card_id'];
+        }
+    }
+
+    return null;
+}
+
 /* ==============================
    START GAME HANDLER
 ============================== */
@@ -60,6 +99,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['start_game'])) {
     $playersStmt = $pdo->prepare("SELECT * FROM users WHERE current_game = ?");
     $playersStmt->execute([$gameId]);
     $players = $playersStmt->fetchAll();
+
+    /* ==============================
+       2️⃣ GENERATE & INSERT CARDS
+    ============================== */
 
     foreach ($players as $player) {
         $userId = $player['id'];
@@ -86,6 +129,118 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['start_game'])) {
         $stmt->execute([$userId, $gameId]);
     }
 
+    /* ==============================
+    3️⃣ BUILD UNIQUE WEIGHTED CARD LIST
+    ============================== */
+
+    $cardsWithWeights = [];
+
+    foreach ($players as $player) {
+
+        $userId = $player['id'];
+        $wins = (int)($player['wins'] ?? 0);
+        $department = $player['department'] ?? '';
+
+        $weight = calculatePriorityWeight($wins, $department);
+
+        $cardsStmt = $pdo->prepare("
+            SELECT id FROM user_cards
+            WHERE user_id = ? AND game_id = ?
+        ");
+        $cardsStmt->execute([$userId, $gameId]);
+        $cards = $cardsStmt->fetchAll();
+
+        foreach ($cards as $card) {
+            $cardsWithWeights[] = [
+                'card_id' => $card['id'],
+                'weight'  => $weight
+            ];
+        }
+    }
+
+    /* ==============================
+    4️⃣ GENERATE TRIANGLE WINNER QUEUE
+    ============================== */
+
+    $winnerQueue = [];
+    $maxWinners = 10;
+
+    for ($level = 1; $level <= $maxWinners; $level++) {
+
+        $levelCards = [];
+
+        for ($i = 0; $i < $level; $i++) {
+
+            if (empty($cardsWithWeights)) {
+                break;
+            }
+
+            $pickedCard = weightedRandomPick($cardsWithWeights);
+
+            if ($pickedCard) {
+                $levelCards[] = $pickedCard;
+            }
+        }
+
+        if (!empty($levelCards)) {
+            $winnerQueue[] = $levelCards;
+        }
+    }
+
+    /* ==============================
+       5️⃣ STORE WINNER QUEUE
+    ============================== */
+
+    foreach ($winnerQueue as $levelIndex => $cards) {
+
+        $level = $levelIndex + 1;
+
+        foreach ($cards as $cardId) {
+
+            $stmt = $pdo->prepare("
+                INSERT INTO game_winner_queue (game_id, level, card_id)
+                VALUES (?, ?, ?)
+            ");
+
+            $stmt->execute([$gameId, $level, $cardId]);
+        }
+    }
+
+    /* ==============================
+    6️⃣ SET PRIMARY WINNER IN GAME
+    ============================== */
+
+    $primaryCardId = $winnerQueue[0][0] ?? null;
+
+    if ($primaryCardId) {
+
+        // Get user of that card
+        $stmt = $pdo->prepare("
+            SELECT user_id 
+            FROM user_cards 
+            WHERE id = ?
+        ");
+        $stmt->execute([$primaryCardId]);
+        $cardOwner = $stmt->fetch();
+
+        if ($cardOwner) {
+
+            $primaryUserId = $cardOwner['user_id'];
+
+            // Store winner user_id in game table
+            $stmt = $pdo->prepare("
+                UPDATE game 
+                SET game_winners = ? 
+                WHERE id = ?
+            ");
+            $stmt->execute([$primaryUserId, $gameId]);
+        }
+    }
+
+    /* ==============================
+       7️⃣ MARK GAME AS STARTED
+    ============================== */
+
     // Mark game as started (optional)
     $stmt = $pdo->prepare("UPDATE game SET started = 1 WHERE id = ?");
     $stmt->execute([$gameId]);
@@ -93,6 +248,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['start_game'])) {
     header("Location: manage_game.php?game_id=" . $gameId);
     exit;
 }
+
+
 
 function generateRandomBingoCard() {
     $card = [];

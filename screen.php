@@ -28,7 +28,7 @@ $playerCount = $countStmt->fetchColumn();
 /* ==============================
    QR CODE LINK
 ============================== */
-$registerUrl = "https://192.168.40.14/join_game.php?game_code=" . urlencode($game['game_code']);
+$registerUrl = "https://192.168.40.14/bingo/index.php?game_code=" . urlencode($game['game_code']);
 $qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" . urlencode($registerUrl);
 
 $started = (int)$game['started'] === 1;
@@ -55,7 +55,7 @@ $started = (int)$game['started'] === 1;
 <?php if (!$started): ?>
 
     <!-- ===============================
-         LOBBY SCREEN
+         LOBBY SCREEN (UNCHANGED STYLE)
     ================================ -->
 
     <div class="container text-center py-5">
@@ -72,8 +72,8 @@ $started = (int)$game['started'] === 1;
             <?= $playerCount ?>
         </div>
 
-        <div class="card bg-dark border-0 shadow-lg mx-auto" style="max-width:350px;">
-            <div class="card-body">
+        <div class="card bg-dark text-white border-0 shadow-lg mx-auto" style="max-width:350px;">
+            <div class="card-body text-center">
                 <h5 class="mb-3">Scan to Join</h5>
                 <img src="<?= $qrUrl ?>" class="img-fluid">
             </div>
@@ -81,62 +81,93 @@ $started = (int)$game['started'] === 1;
 
     </div>
 
-    <script>
-    let currentCount = <?= $playerCount ?>;
-    let gameStarted = <?= $started ? 1 : 0 ?>;
-
-    function checkLobbyChanges() {
-        fetch('screen_status.php?game_id=<?= $gameId ?>')
-            .then(res => res.json())
-            .then(data => {
-
-                let newCount = parseInt(data.count);
-                let newStarted = parseInt(data.started);
-
-                // If new player joined
-                if (newCount !== currentCount) {
-                    location.reload();
-                }
-
-                // If game started
-                if (newStarted !== gameStarted) {
-                    location.reload();
-                }
-            })
-            .catch(err => console.error(err));
-    }
-
-    // Check every 3 seconds
-    setInterval(checkLobbyChanges, 3000);
-    </script>
-
 <?php else: ?>
 
     <!-- ===============================
          LIVE GAME SCREEN
     ================================ -->
 
-    <div class="container text-center py-5">
+    <div class="container-fluid py-5">
+        <div class="row">
 
-        <h1 class="display-2 text-success mb-4">
-            🎮 Game Started!
-        </h1>
+            <!-- MAIN GAME CONTENT -->
+            <div class="col-lg-9 text-center">
 
-        <p class="lead">
-            Live game display will go here.
-        </p>
+                <h1 class="display-2 text-success mb-4">
+                    🎮 Game Started!
+                </h1>
 
-        <h4 class="mt-4">
-            Winners Required: <?= $game['winners'] ?>
-        </h4>
+                <p class="lead">
+                    Live game display will go here.
+                </p>
 
-        <h4>
-            Current Winners: <?= $game['game_winners'] ?>
-        </h4>
+                <h4 class="mt-4">
+                    Winners Required: <?= $game['winners'] ?>
+                </h4>
 
+                <h4>
+                    Current Winners: <?= $game['game_winners'] ?>
+                </h4>
+
+            </div>
+
+            <!-- SMALL REJOIN PANEL (SIDE) -->
+            <div class="col-lg-3">
+
+                <div class="card bg-dark text-white border-0 shadow-sm">
+                    <div class="card-body text-center">
+
+                        <h6 class="mb-2">Rejoin Game</h6>
+
+                        <div class="fw-bold text-warning mb-2">
+                            <?= htmlspecialchars($game['game_code']) ?>
+                        </div>
+
+                        <img src="<?= $qrUrl ?>" class="img-fluid mb-2" style="max-width:150px;">
+
+                        <p class="small text-muted mb-0">
+                            Scan if disconnected
+                        </p>
+
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
     </div>
 
 <?php endif; ?>
+
+<script>
+let currentCount = <?= $playerCount ?>;
+let gameStarted = <?= $started ? 1 : 0 ?>;
+
+function checkScreenChanges() {
+    fetch('screen_status.php?game_id=<?= $gameId ?>')
+        .then(res => res.json())
+        .then(data => {
+
+            let newCount = parseInt(data.count);
+            let newStarted = parseInt(data.started);
+
+            // If new player joined (Lobby)
+            if (!gameStarted && newCount !== currentCount) {
+                location.reload();
+            }
+
+            // If game started
+            if (newStarted !== gameStarted) {
+                location.reload();
+            }
+
+        })
+        .catch(err => console.error("Polling error:", err));
+}
+
+// Check every 3 seconds
+setInterval(checkScreenChanges, 3000);
+</script>
 
 </body>
 </html>

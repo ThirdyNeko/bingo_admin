@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $stmt = $pdo->prepare("
             INSERT INTO users 
-            (name, id_number, Department, role, wins, current_game, auto_mode, card_count)
+            (name, id_number, department, role, wins, current_game, auto_mode, card_count)
             VALUES (?, ?, ?, 'Player', 0, NULL, 0, 1)
         ");
 

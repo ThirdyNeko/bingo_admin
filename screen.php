@@ -19,6 +19,33 @@ if (!$game) {
 }
 
 /* ==============================
+   CLAIMED WINNERS COUNT
+============================== */
+$claimedStmt = $pdo->prepare("
+    SELECT COUNT(*) 
+    FROM game_winner_queue 
+    WHERE game_id = ? AND claimed = 1
+");
+$claimedStmt->execute([$gameId]);
+$claimedCount = (int) $claimedStmt->fetchColumn();
+
+$totalWinners = (int) $game['winners'];
+
+/* ==============================
+   WINNERS LIST
+============================== */
+$winnersStmt = $pdo->prepare("
+    SELECT u.name
+    FROM game_winner_queue gwq
+    JOIN user_cards uc ON gwq.card_id = uc.id
+    JOIN users u ON uc.user_id = u.id
+    WHERE gwq.game_id = ? AND gwq.claimed = 1
+    ORDER BY gwq.level ASC
+");
+$winnersStmt->execute([$gameId]);
+$winnerNames = $winnersStmt->fetchAll(PDO::FETCH_COLUMN);
+
+/* ==============================
    PLAYER COUNT
 ============================== */
 $countStmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE current_game = ?");
@@ -103,33 +130,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
         $gameId
     ]);
 
-    // // 9️⃣ Check if winner completed pattern
-    // $patternNumbers = [];
-    // foreach ($pattern as $row => $cols) {
-    //     foreach ($cols as $col => $val) {
-    //         if ($val == 1) {
-    //             $n = $cardData[$letters[$col]][$row] ?? null;
-    //             if ($n !== null && $n !== "FREE") $patternNumbers[] = $n;
-    //         }
-    //     }
-    // }
-
-    // if (empty(array_diff($patternNumbers, $drawnNumbers))) {
-    //     // Mark as claimed
-    //     $pdo->prepare("
-    //         UPDATE game_winner_queue 
-    //         SET claimed = 1
-    //         WHERE id = ?
-    //     ")->execute([$queuedWinner['id']]);
-
-    //     // Increment game_winners
-    //     $pdo->prepare("
-    //         UPDATE game
-    //         SET game_winners = game_winners + 1
-    //         WHERE id = ?
-    //     ")->execute([$gameId]);
-    // }
-
     header("Location: screen.php?game_id=" . $gameId);
     exit;
 }
@@ -203,8 +203,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
                 </p>
 
                 <h4 class="mt-4">
-                    Potential Winners: <?= $game['winners'] ?>
+                    Winners: <?= $claimedCount ?> / <?= $totalWinners ?>
                 </h4>
+
+                <?php if (!empty($winnerNames)): ?>
+                    <div class="mt-3">
+                        <?php foreach ($winnerNames as $index => $name): ?>
+                            <div class="fs-4 text-warning">
+                                #<?= $index + 1 ?> — <?= htmlspecialchars($name) ?>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
 
                 <form method="POST" class="mt-4">
                     <button type="submit" name="draw_number" class="btn btn-lg btn-success px-5">
@@ -323,6 +333,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
 <script>
 let currentCount = <?= $playerCount ?>;
 let gameStarted = <?= $started ? 1 : 0 ?>;
+let currentClaimed = <?= $claimedCount ?>;
 
 function checkScreenChanges() {
     fetch('screen_status.php?game_id=<?= $gameId ?>')
@@ -331,14 +342,20 @@ function checkScreenChanges() {
 
             let newCount = parseInt(data.count);
             let newStarted = parseInt(data.started);
+            let newClaimed = parseInt(data.claimed);
 
-            // If new player joined (Lobby)
+            // Lobby player change
             if (!gameStarted && newCount !== currentCount) {
                 location.reload();
             }
 
-            // If game started
+            // Game started change
             if (newStarted !== gameStarted) {
+                location.reload();
+            }
+
+            // ✅ NEW: Winner claimed change
+            if (newClaimed !== currentClaimed) {
                 location.reload();
             }
 

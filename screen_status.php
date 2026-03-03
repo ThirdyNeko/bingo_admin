@@ -2,22 +2,33 @@
 require_once 'config/db.php';
 
 if (!isset($_GET['game_id'])) {
+    echo json_encode([]);
     exit;
 }
 
 $gameId = (int) $_GET['game_id'];
 
-// Get player count
+// Player count
 $countStmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE current_game = ?");
 $countStmt->execute([$gameId]);
-$playerCount = (int)$countStmt->fetchColumn();
+$count = (int) $countStmt->fetchColumn();
 
-// Get game started status
+// Started status
 $stmt = $pdo->prepare("SELECT started FROM game WHERE id = ?");
 $stmt->execute([$gameId]);
-$started = (int)$stmt->fetchColumn();
+$started = (int) $stmt->fetchColumn();
+
+// Claimed winners count
+$claimedStmt = $pdo->prepare("
+    SELECT COUNT(*) 
+    FROM game_winner_queue 
+    WHERE game_id = ? AND claimed = 1
+");
+$claimedStmt->execute([$gameId]);
+$claimed = (int) $claimedStmt->fetchColumn();
 
 echo json_encode([
-    'count' => $playerCount,
-    'started' => $started
+    'count'   => $count,
+    'started' => $started,
+    'claimed' => $claimed
 ]);

@@ -104,18 +104,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
         }
     }
 
-    // 6️⃣ Available numbers for filler
-    $allNumbers = range(1,75);
-    $availableNumbers = array_diff($allNumbers, $drawnNumbers);
+    // 6️⃣ Remove already drawn numbers
+    $neededNumbers = array_values(array_diff($neededNumbers ?? [], $drawnNumbers));
+    $availableNumbers = array_values(array_diff(range(1,75), $drawnNumbers));
+
+    // Safety check
+    if (empty($availableNumbers)) {
+        exit; // All 75 numbers already drawn
+    }
 
     // 7️⃣ Controlled randomness
     $drawCount = (int) ($game['draw_count'] ?? 0);
     $progressChance = min(20 + ($drawCount * 5), 80);
 
     if (!empty($neededNumbers) && rand(1,100) <= $progressChance) {
-        $number = $neededNumbers[array_rand($neededNumbers)]; // 🎯 needed
+        $number = $neededNumbers[array_rand($neededNumbers)];
     } else {
-        $number = $availableNumbers[array_rand($availableNumbers)]; // 🎲 filler
+        $number = $availableNumbers[array_rand($availableNumbers)];
     }
 
     $drawnNumbers[] = $number;

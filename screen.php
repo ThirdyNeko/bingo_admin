@@ -247,6 +247,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
                     </div>
                 </div>
 
+                <?php
+                $pattern = json_decode($game['pattern'], true);
+                $letters = ['B','I','N','G','O'];
+                ?>
+
+                <div class="mt-5 text-center w-100">
+                    <h3 class="text-info mb-3">Winning Pattern</h3>
+
+                    <div class="mx-auto bg-dark p-3 rounded shadow" style="width:max-content;">
+
+                        <!-- B I N G O Header -->
+                        <div class="d-flex mb-2">
+                            <?php foreach ($letters as $letter): ?>
+                                <div class="text-center fw-bold text-warning" style="width:60px;">
+                                    <?= $letter ?>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+
+                        <!-- Pattern Grid -->
+                        <?php foreach ($pattern as $rowIndex => $row): ?>
+                            <div class="d-flex">
+                                <?php foreach ($row as $colIndex => $cell): ?>
+
+                                    <?php
+                                    $isCenter = ($rowIndex == 2 && $colIndex == 2);
+                                    ?>
+
+                                    <div class="border text-center"
+                                        style="
+                                            width:60px;
+                                            height:60px;
+                                            line-height:60px;
+                                            font-size:1.2rem;
+                                            font-weight:bold;
+                                            <?php if ($isCenter): ?>
+                                                background:#ffc107;
+                                                color:black;
+                                            <?php elseif ($cell == 1): ?>
+                                                background:#28a745;
+                                                color:white;
+                                            <?php else: ?>
+                                                background:#222;
+                                                color:#555;
+                                            <?php endif; ?>
+                                        ">
+
+                                        <?php
+                                        if ($isCenter) {
+                                            echo "FREE";
+                                        } elseif ($cell == 1) {
+                                            echo "✔";
+                                        } else {
+                                            echo "";
+                                        }
+                                        ?>
+
+                                    </div>
+
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endforeach; ?>
+
+                    </div>
+                </div>
+
             </div>
 
         </div>

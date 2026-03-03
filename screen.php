@@ -103,32 +103,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
         $gameId
     ]);
 
-    // 9️⃣ Check if winner completed pattern
-    $patternNumbers = [];
-    foreach ($pattern as $row => $cols) {
-        foreach ($cols as $col => $val) {
-            if ($val == 1) {
-                $n = $cardData[$letters[$col]][$row] ?? null;
-                if ($n !== null && $n !== "FREE") $patternNumbers[] = $n;
-            }
-        }
-    }
+    // // 9️⃣ Check if winner completed pattern
+    // $patternNumbers = [];
+    // foreach ($pattern as $row => $cols) {
+    //     foreach ($cols as $col => $val) {
+    //         if ($val == 1) {
+    //             $n = $cardData[$letters[$col]][$row] ?? null;
+    //             if ($n !== null && $n !== "FREE") $patternNumbers[] = $n;
+    //         }
+    //     }
+    // }
 
-    if (empty(array_diff($patternNumbers, $drawnNumbers))) {
-        // Mark as claimed
-        $pdo->prepare("
-            UPDATE game_winner_queue 
-            SET claimed = 1
-            WHERE id = ?
-        ")->execute([$queuedWinner['id']]);
+    // if (empty(array_diff($patternNumbers, $drawnNumbers))) {
+    //     // Mark as claimed
+    //     $pdo->prepare("
+    //         UPDATE game_winner_queue 
+    //         SET claimed = 1
+    //         WHERE id = ?
+    //     ")->execute([$queuedWinner['id']]);
 
-        // Increment game_winners
-        $pdo->prepare("
-            UPDATE game
-            SET game_winners = game_winners + 1
-            WHERE id = ?
-        ")->execute([$gameId]);
-    }
+    //     // Increment game_winners
+    //     $pdo->prepare("
+    //         UPDATE game
+    //         SET game_winners = game_winners + 1
+    //         WHERE id = ?
+    //     ")->execute([$gameId]);
+    // }
 
     header("Location: screen.php?game_id=" . $gameId);
     exit;

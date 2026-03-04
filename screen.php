@@ -223,17 +223,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
 
                 <form method="POST" class="mt-4">
                     <button type="submit" name="draw_number" class="btn btn-lg btn-success px-5">
-                        🎱 Draw Number
+                        Draw Number
                     </button>
                 </form>
                 <?php
                 $drawnNumbers = json_decode($game['drawn_numbers'] ?? '[]', true);
-                $lastNumber = end($drawnNumbers); // Get the most recent drawn number
+                $lastNumber = end($drawnNumbers);
+
+                if ($lastNumber):
+
+                    // Determine Bingo letter
+                    if ($lastNumber >= 1 && $lastNumber <= 15) {
+                        $letter = 'B';
+                    } elseif ($lastNumber <= 30) {
+                        $letter = 'I';
+                    } elseif ($lastNumber <= 45) {
+                        $letter = 'N';
+                    } elseif ($lastNumber <= 60) {
+                        $letter = 'G';
+                    } else {
+                        $letter = 'O';
+                    }
                 ?>
-                <?php if ($lastNumber): ?>
                     <div class="my-4">
                         <h2 class="display-1 text-warning">
-                            🎱 <?= $lastNumber ?>
+                            <?= $letter ?>-<?= $lastNumber ?>
                         </h2>
                         <p class="lead">Last number drawn</p>
                     </div>

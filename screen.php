@@ -145,6 +145,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
 <head>
     <title>Game Screen</title>
     <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/design.css" rel="stylesheet">
     <style>
         body {
             background: #111;
@@ -232,7 +233,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
 
                 if ($lastNumber):
 
-                    // Determine Bingo letter
                     if ($lastNumber >= 1 && $lastNumber <= 15) {
                         $letter = 'B';
                     } elseif ($lastNumber <= 30) {
@@ -245,11 +245,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
                         $letter = 'O';
                     }
                 ?>
-                    <div class="my-4">
-                        <h2 class="display-1 text-warning">
-                            <?= $letter ?>-<?= $lastNumber ?>
-                        </h2>
-                        <p class="lead">Last number drawn</p>
+                    <div class="my-4 text-center">
+                        <div class="bingo-ball <?= $letter ?>">
+                            <div class="outer-letter">
+                                <?= $letter ?>
+                            </div>
+                            <div class="inner-number">
+                                <?= $lastNumber ?>
+                            </div>
+                        </div>
+                        <p class="lead mt-3">Last number drawn</p>
                     </div>
                 <?php endif; ?>
 

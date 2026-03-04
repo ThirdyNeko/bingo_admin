@@ -335,10 +335,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
 
 <?php endif; ?>
 
+<script src="sweetalert/dist/sweetalert2.all.min.js"></script>
+
 <script>
 let currentCount = <?= $playerCount ?>;
 let gameStarted = <?= $started ? 1 : 0 ?>;
 let currentClaimed = <?= $claimedCount ?>;
+let totalWinners = <?= $totalWinners ?>;
+
+if (currentClaimed >= totalWinners) {
+    Swal.fire({
+        icon: 'success',
+        title: '🎉 Game Finished!',
+        text: 'All winners have been claimed!',
+        confirmButtonText: 'View Winners',
+        confirmButtonColor: '#28a745',
+        allowOutsideClick: false
+    }).then(() => {
+        window.location.href = 'winners.php?game_id=<?= $gameId ?>';
+    });
+}
 
 function checkScreenChanges() {
     fetch('screen_status.php?game_id=<?= $gameId ?>')
@@ -359,9 +375,24 @@ function checkScreenChanges() {
                 location.reload();
             }
 
-            // ✅ NEW: Winner claimed change
+            // Winner claimed change
             if (newClaimed !== currentClaimed) {
-                location.reload();
+                currentClaimed = newClaimed;
+
+                if (newClaimed >= totalWinners) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '🎉 Game Finished!',
+                        text: 'All winners have been claimed!',
+                        confirmButtonText: 'View Winners',
+                        confirmButtonColor: '#28a745',
+                        allowOutsideClick: false
+                    }).then(() => {
+                        window.location.href = 'winners.php?game_id=<?= $gameId ?>';
+                    });
+                } else {
+                    location.reload();
+                }
             }
 
         })

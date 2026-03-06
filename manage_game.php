@@ -95,153 +95,143 @@ function weightedRandomPick(&$items) {
 ============================== */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['start_game'])) {
 
-    // Fetch all players for this game
+    // Fetch players
     $playersStmt = $pdo->prepare("SELECT * FROM users WHERE current_game = ?");
     $playersStmt->execute([$gameId]);
     $players = $playersStmt->fetchAll();
 
-    /* ==============================
-       2️⃣ GENERATE & INSERT CARDS
-    ============================== */
+    $letters = ['B','I','N','G','O'];
+    $pattern = json_decode($game['pattern'], true);
+    $maxWinners = $game['winners'] ?? 2; // number of winners for shared number
 
+    $cardsWithWeights = [];
+    $allCardIds = [];
+
+    /* ==============================
+       1️⃣ GENERATE CARDS FOR ALL PLAYERS
+    ============================== */
     foreach ($players as $player) {
         $userId = $player['id'];
         $cardCount = max(1, $player['card_count'] ?? 1);
 
-        // Assign random bingo cards
-        // Assuming you have a `bingo_cards` table to store cards per user
-        // If not, you can generate them and store in JSON in a `cards` column in `users`
         for ($i = 0; $i < $cardCount; $i++) {
-            $randomCard = json_encode(generateRandomBingoCard()); // function to generate card
-            $stmt = $pdo->prepare("
-                INSERT INTO user_cards (user_id, game_id, card_data)
-                VALUES (?, ?, ?)
-            ");
-            $stmt->execute([$userId, $gameId, $randomCard]);
-        }
+            $randomCard = generateRandomBingoCard(); // uses correct B/I/N/G/O ranges
+            $stmt = $pdo->prepare("INSERT INTO user_cards (user_id, game_id, card_data) VALUES (?, ?, ?)");
+            $stmt->execute([$userId, $gameId, json_encode($randomCard)]);
+            $cardId = $pdo->lastInsertId();
 
-        // Set auto_mode and card_count frozen (optional)
-        $stmt = $pdo->prepare("
-            UPDATE users
-            SET auto_mode = auto_mode, card_count = card_count
-            WHERE id = ? AND current_game = ?
-        ");
-        $stmt->execute([$userId, $gameId]);
-    }
-
-    /* ==============================
-    3️⃣ BUILD UNIQUE WEIGHTED CARD LIST
-    ============================== */
-
-    $cardsWithWeights = [];
-
-    foreach ($players as $player) {
-
-        $userId = $player['id'];
-        $wins = (int)($player['wins'] ?? 0);
-        $department = $player['department'] ?? '';
-
-        $weight = calculatePriorityWeight($wins, $department);
-
-        $cardsStmt = $pdo->prepare("
-            SELECT id FROM user_cards
-            WHERE user_id = ? AND game_id = ?
-        ");
-        $cardsStmt->execute([$userId, $gameId]);
-        $cards = $cardsStmt->fetchAll();
-
-        foreach ($cards as $card) {
+            $weight = calculatePriorityWeight((int)$player['wins'] ?? 0, $player['department'] ?? '');
             $cardsWithWeights[] = [
-                'card_id' => $card['id'],
+                'card_id' => $cardId,
                 'weight'  => $weight
             ];
+            $allCardIds[] = $cardId;
         }
     }
 
     /* ==============================
-    4️⃣ GENERATE TRIANGLE WINNER QUEUE
+       2️⃣ PICK WINNER CARDS FOR SHARED NUMBER
     ============================== */
+    $winnerCardIds = [];
+    for ($i = 0; $i < $maxWinners; $i++) {
+        $picked = weightedRandomPick($cardsWithWeights);
+        if ($picked) $winnerCardIds[] = $picked;
+    }
+
+    /* ==============================
+       3️⃣ ASSIGN SHARED NUMBER INSIDE PATTERN
+    ============================== */
+    if (!empty($winnerCardIds)) {
+        $sharedNumber = null;
+
+        // Pick a number between 1-75
+        do {
+            $sharedNumber = rand(1,75);
+            $fits = true;
+
+            foreach ($winnerCardIds as $cardId) {
+                $stmt = $pdo->prepare("SELECT card_data FROM user_cards WHERE id = ?");
+                $stmt->execute([$cardId]);
+                $cardData = json_decode($stmt->fetchColumn(), true);
+
+                // Find a valid pattern cell
+                $placed = false;
+                foreach ($pattern as $r => $cols) {
+                    foreach ($cols as $c => $val) {
+                        if ($val == 1) {
+                            $letter = $letters[$c];
+
+                            if ($letter === 'N' && $r === 2) continue; // skip FREE
+
+                            // Make sure the shared number is in correct column range
+                            $validRange = [
+                                'B'=>range(1,15),
+                                'I'=>range(16,30),
+                                'N'=>range(31,45),
+                                'G'=>range(46,60),
+                                'O'=>range(61,75)
+                            ];
+
+                            if (!in_array($sharedNumber, $validRange[$letter])) continue;
+
+                            $cardData[$letter][$r] = $sharedNumber;
+                            $placed = true;
+                            break 2;
+                        }
+                    }
+                }
+
+                if (!$placed) {
+                    $fits = false;
+                    break;
+                }
+
+                // Save back
+                $stmt = $pdo->prepare("UPDATE user_cards SET card_data = ?, shared_number = ? WHERE id = ?");
+                $stmt->execute([json_encode($cardData), $sharedNumber, $cardId]);
+            }
+
+        } while (!$fits);
+    }
+
+    /* ==============================
+    4️⃣ BUILD WINNER QUEUE WITH WINNERS PRIORITIZED
+    ============================= */
+
+    // $winnerCardIds = first N winner cards (shared number)
+    // $allCardIds = all cards in the game
+
+    // Remove winner cards from all cards so we can append the rest
+    $otherCards = array_diff($allCardIds, $winnerCardIds);
+
+    // Queue order: winners first, then the rest
+    $queueOrder = array_merge($winnerCardIds, $otherCards);
 
     $winnerQueue = [];
-    $maxWinners = 10;
+    $queueLevel = 1;
 
-    for ($level = 1; $level <= $maxWinners; $level++) {
-
-        $levelCards = [];
-
-        for ($i = 0; $i < $level; $i++) {
-
-            if (empty($cardsWithWeights)) {
-                break;
-            }
-
-            $pickedCard = weightedRandomPick($cardsWithWeights);
-
-            if ($pickedCard) {
-                $levelCards[] = $pickedCard;
-            }
-        }
-
-        if (!empty($levelCards)) {
-            $winnerQueue[] = $levelCards;
-        }
+    while (!empty($queueOrder)) {
+        // Take next $queueLevel cards for this level
+        $levelCards = array_splice($queueOrder, 0, $queueLevel);
+        $winnerQueue[] = $levelCards;
+        $queueLevel++;
     }
 
-    /* ==============================
-       5️⃣ STORE WINNER QUEUE
-    ============================== */
-
+    // Insert into game_winner_queue table
     foreach ($winnerQueue as $levelIndex => $cards) {
-
         $level = $levelIndex + 1;
-
         foreach ($cards as $cardId) {
-
             $stmt = $pdo->prepare("
                 INSERT INTO game_winner_queue (game_id, level, card_id)
                 VALUES (?, ?, ?)
             ");
-
             $stmt->execute([$gameId, $level, $cardId]);
         }
     }
 
     /* ==============================
-    6️⃣ SET PRIMARY WINNER IN GAME
+       5️⃣ MARK GAME AS STARTED
     ============================== */
-
-    $primaryCardId = $winnerQueue[0][0] ?? null;
-
-    if ($primaryCardId) {
-
-        // Get user of that card
-        $stmt = $pdo->prepare("
-            SELECT user_id 
-            FROM user_cards 
-            WHERE id = ?
-        ");
-        $stmt->execute([$primaryCardId]);
-        $cardOwner = $stmt->fetch();
-
-        if ($cardOwner) {
-
-            $primaryUserId = $cardOwner['user_id'];
-
-            // Store winner user_id in game table
-            $stmt = $pdo->prepare("
-                UPDATE game 
-                SET game_winners = ? 
-                WHERE id = ?
-            ");
-            $stmt->execute([$primaryUserId, $gameId]);
-        }
-    }
-
-    /* ==============================
-       7️⃣ MARK GAME AS STARTED
-    ============================== */
-
-    // Mark game as started (optional)
     $stmt = $pdo->prepare("UPDATE game SET started = 1 WHERE id = ?");
     $stmt->execute([$gameId]);
 
@@ -249,19 +239,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['start_game'])) {
     exit;
 }
 
-
-
+/* ==============================
+   HELPER: Generate Bingo Card With Correct Column Ranges
+============================== */
 function generateRandomBingoCard() {
     $card = [];
-    $columns = ['B'=>1,'I'=>16,'N'=>31,'G'=>46,'O'=>61];
-    foreach ($columns as $letter => $start) {
-        $nums = range($start, $start+14);
-        shuffle($nums);
-        $card[$letter] = array_slice($nums, 0, 5);
+    $columns = [
+        'B'=>range(1,15),
+        'I'=>range(16,30),
+        'N'=>range(31,45),
+        'G'=>range(46,60),
+        'O'=>range(61,75)
+    ];
+
+    foreach ($columns as $letter => $range) {
+        shuffle($range);
+        $card[$letter] = array_slice($range, 0, 5);
     }
+
     $card['N'][2] = 'FREE'; // center free space
     return $card;
 }
+
 ?>
 
 <div class="col-md-10 p-4">

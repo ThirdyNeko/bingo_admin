@@ -62,70 +62,87 @@ $started = (int)$game['started'] === 1;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
 
-    // 1️⃣ Next winner
+    // 1️⃣ Get pattern and drawn numbers first
+    $pattern = json_decode($game['pattern'], true);
+    $drawnNumbers = json_decode($game['drawn_numbers'] ?? '[]', true);
+    $letters = ['B','I','N','G','O'];
+
+    // 2️⃣ Get queued winners
     $queueStmt = $pdo->prepare("
         SELECT * FROM game_winner_queue
         WHERE game_id = ? AND claimed = 0
         ORDER BY level ASC
-        LIMIT 1
+        LIMIT ?
     ");
-    $queueStmt->execute([$gameId]);
-    $queuedWinner = $queueStmt->fetch();
-    if (!$queuedWinner) die("No queued winner found.");
+    $queueStmt->execute([$gameId, $totalWinners]);
+    $queuedWinners = $queueStmt->fetchAll();
 
-    $cardId = $queuedWinner['card_id'];
+    if (!$queuedWinners) {
+        die("No queued winner found.");
+    }
 
-    // 2️⃣ Get winner's card
-    $cardStmt = $pdo->prepare("
-        SELECT card_data 
-        FROM user_cards 
-        WHERE id = ?
-    ");
-    $cardStmt->execute([$cardId]);
-    $cardData = json_decode($cardStmt->fetchColumn(), true);
+    // 3️⃣ Collect needed numbers for each winner
+    $allNeeded = [];
+    $sharedNumber = null; // this should be stored/assigned at card generation
 
-    // 3️⃣ Get pattern
-    $pattern = json_decode($game['pattern'], true);
+    foreach ($queuedWinners as $winner) {
 
-    // 4️⃣ Already drawn numbers (create if missing)
-    $drawnNumbers = json_decode($game['drawn_numbers'] ?? '[]', true);
+        $cardStmt = $pdo->prepare("
+            SELECT card_data, shared_number
+            FROM user_cards 
+            WHERE id = ?
+        ");
+        $cardStmt->execute([$winner['card_id']]);
+        $rowData = $cardStmt->fetch(PDO::FETCH_ASSOC);
+        $cardData = json_decode($rowData['card_data'], true);
+        $sharedNumber = $rowData['shared_number']; // stored during card creation
 
-    // 5️⃣ Map pattern to actual numbers
-    $letters = ['B','I','N','G','O'];
-    $neededNumbers = [];
-    foreach ($pattern as $row => $cols) {
-        foreach ($cols as $col => $val) {
-            if ($val == 1) {
-                $number = $cardData[$letters[$col]][$row] ?? null;
-                if ($number !== null && $number !== "FREE" && !in_array($number, $drawnNumbers)) {
-                    $neededNumbers[] = $number;
+        $neededNumbers = [];
+
+        foreach ($pattern as $r => $cols) {
+            foreach ($cols as $c => $val) {
+                if ($val == 1) {
+                    $num = $cardData[$letters[$c]][$r] ?? null;
+
+                    if ($num !== null && $num !== "FREE" && !in_array($num, $drawnNumbers)) {
+                        // ✅ skip shared number until last
+                        if ($num != $sharedNumber) {
+                            $neededNumbers[] = $num;
+                        }
+                    }
                 }
             }
         }
+
+        $allNeeded[] = $neededNumbers;
     }
 
-    // 6️⃣ Remove already drawn numbers
-    $neededNumbers = array_values(array_diff($neededNumbers ?? [], $drawnNumbers));
-    $availableNumbers = array_values(array_diff(range(1,75), $drawnNumbers));
+    // 4️⃣ Determine numbers to draw
+    // Merge all needed numbers into one array
+    $drawPool = array_unique(array_merge(...$allNeeded));
 
-    // Safety check
-    if (empty($availableNumbers)) {
-        exit; // All 75 numbers already drawn
-    }
+    // Safety: available numbers not yet drawn
+    $availableNumbers = array_values(array_diff($drawPool, $drawnNumbers));
 
-    // 7️⃣ Controlled randomness
-    $drawCount = (int) ($game['draw_count'] ?? 0);
-    $progressChance = min(20 + ($drawCount * 5), 80);
-
-    if (!empty($neededNumbers) && rand(1,100) <= $progressChance) {
-        $number = $neededNumbers[array_rand($neededNumbers)];
+    // If all other numbers drawn, now draw the shared number
+    if (empty($availableNumbers) && $sharedNumber && !in_array($sharedNumber, $drawnNumbers)) {
+        $number = $sharedNumber;
     } else {
-        $number = $availableNumbers[array_rand($availableNumbers)];
+        // Draw a number randomly from the pool
+        if (!empty($availableNumbers)) {
+            $number = $availableNumbers[array_rand($availableNumbers)];
+        } else {
+            // fallback to any remaining number in 1-75
+            $remainingNumbers = array_values(array_diff(range(1,75), $drawnNumbers));
+            if (empty($remainingNumbers)) exit; // all numbers drawn
+            $number = $remainingNumbers[array_rand($remainingNumbers)];
+        }
     }
 
+    // 5️⃣ Add number to drawn numbers
     $drawnNumbers[] = $number;
 
-    // 8️⃣ Update game table (make sure columns exist!)
+    // 6️⃣ Save game state
     $pdo->prepare("
         UPDATE game
         SET drawn_numbers = ?, draw_count = draw_count + 1

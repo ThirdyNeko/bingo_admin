@@ -301,55 +301,30 @@ function generateRandomBingoCard() {
                                     <th>Name</th>
                                     <th>Mode</th>
                                     <th>Cards</th>
-                                    <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php foreach ($players as $index => $player): ?>
                                     <tr>
-                                        <form method="POST">
-                                            <td style="width:50px; text-align:center;"><?= $index + 1 ?></td>
+                                        <td style="width:50px; text-align:center;">
+                                            <?= $index + 1 ?>
+                                        </td>
 
-                                            <td><?= htmlspecialchars($player['name']) ?></td>
+                                        <td>
+                                            <?= htmlspecialchars($player['name']) ?>
+                                        </td>
 
-                                            <!-- AUTO / MANUAL SWITCH -->
-                                            <td style="width:120px; text-align:center;">
-                                                <div class="form-check form-switch">
-                                                    <input class="form-check-input"
-                                                        type="checkbox"
-                                                        name="auto_mode"
-                                                        <?= $player['auto_mode'] == 1 ? 'checked' : '' ?>
-                                                        <?= $game['started'] ? 'disabled' : '' ?>>
-                                                    <label class="form-check-label">
-                                                        <?= $player['auto_mode'] == 1 ? 'Auto' : 'Manual' ?>
-                                                    </label>
-                                                </div>
-                                            </td>
+                                        <!-- READ ONLY MODE -->
+                                        <td style="width:120px; text-align:center;">
+                                            <span class="badge <?= $player['auto_mode'] ? 'bg-primary' : 'bg-secondary' ?>">
+                                                <?= $player['auto_mode'] ? 'Auto' : 'Manual' ?>
+                                            </span>
+                                        </td>
 
-                                            <!-- MULTIPLE CARDS -->
-                                            <td style="width:120px;">
-                                                <input type="number"
-                                                    name="card_count"
-                                                    class="form-control"
-                                                    min="1"
-                                                    value="<?= $player['card_count'] ?? 1 ?>"
-                                                    <?= $game['started'] ? 'disabled' : '' ?>>
-                                            </td>
-
-                                            <!-- UPDATE BUTTON -->
-                                            <td style="width:120px;">
-                                                <?php if (!$game['started']): ?>
-                                                    <input type="hidden" name="user_id" value="<?= $player['id'] ?>">
-                                                    <button type="submit"
-                                                            name="update_player"
-                                                            class="btn btn-sm btn-success w-100">
-                                                        Update
-                                                    </button>
-                                                <?php else: ?>
-                                                    <span class="text-muted">Locked</span>
-                                                <?php endif; ?>
-                                            </td>
-                                        </form>
+                                        <!-- READ ONLY CARD COUNT -->
+                                        <td style="width:120px; text-align:center;">
+                                            <?= $player['card_count'] ?? 1 ?>
+                                        </td>
                                     </tr>
                                 <?php endforeach; ?>
                             </tbody>

@@ -9,8 +9,13 @@
         Create Game
     </a>
 
-    <a href="manage_games.php" class="<?= basename($_SERVER['PHP_SELF'])=='manage_games.php'?'active-link':'' ?>">
+    <a href="manage_games.php" 
+        class="<?= in_array(basename($_SERVER['PHP_SELF']), ['manage_games.php','manage_game.php']) ? 'active-link' : '' ?>">
         Manage Games
+    </a>
+
+    <a href="settings.php" class="<?= basename($_SERVER['PHP_SELF'])=='settings.php'?'active-link':'' ?>">
+        Settings
     </a>
 
     <a href="auth/logout.php" class="text-danger">

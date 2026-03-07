@@ -66,6 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
     $pattern = json_decode($game['pattern'], true);
     $drawnNumbers = json_decode($game['drawn_numbers'] ?? '[]', true);
     $letters = ['B','I','N','G','O'];
+    
 
     // 2️⃣ Get queued winners
     $queueStmt = $pdo->prepare("
@@ -117,29 +118,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
         $allNeeded[] = $neededNumbers;
     }
 
-    // 4️⃣ Determine numbers to draw
-    // Merge all needed numbers into one array
+    // 4️⃣ Build draw pools
     $drawPool = array_unique(array_merge(...$allNeeded));
 
-    // Safety: available numbers not yet drawn
-    $availableNumbers = array_values(array_diff($drawPool, $drawnNumbers));
+    $allAvailableNumbers = array_values(array_diff(range(1,75), $drawnNumbers));
+    $winnerNumbers = array_values(array_diff($drawPool, $drawnNumbers));
 
-    // If all other numbers drawn, now draw the shared number
-    if (empty($availableNumbers) && $sharedNumber && !in_array($sharedNumber, $drawnNumbers)) {
-        $number = $sharedNumber;
+    // Random draw chance increases game pacing
+    $drawCount = (int)($game['draw_count'] ?? 0);
+
+    // early game mostly random
+    $progressChance = min(20 + ($drawCount * 2), 60); 
+    // starts at 20% → slowly increases to 60%
+
+    if (!empty($winnerNumbers) && rand(1,100) <= $progressChance) {
+
+        // Progress a winner card
+        $number = $winnerNumbers[array_rand($winnerNumbers)];
+
     } else {
-        // Draw a number randomly from the pool
-        if (!empty($availableNumbers)) {
-            $number = $availableNumbers[array_rand($availableNumbers)];
-        } else {
-            // fallback to any remaining number in 1-75
-            $remainingNumbers = array_values(array_diff(range(1,75), $drawnNumbers));
-            if (empty($remainingNumbers)) exit; // all numbers drawn
-            $number = $remainingNumbers[array_rand($remainingNumbers)];
+
+        // Random draw (avoid helping winners too much)
+        $randomPool = array_values(array_diff($allAvailableNumbers, $winnerNumbers));
+
+        if (empty($randomPool)) {
+            $randomPool = $allAvailableNumbers;
+        }
+
+        $number = $randomPool[array_rand($randomPool)];
+    }
+
+    // 5️⃣ Shared number trigger (final number for winners)
+
+    foreach ($queuedWinners as $winner) {
+
+        $cardStmt = $pdo->prepare("
+            SELECT shared_number
+            FROM user_cards
+            WHERE id = ?
+        ");
+        $cardStmt->execute([$winner['card_id']]);
+        $sharedNumber = $cardStmt->fetchColumn();
+
+        if ($sharedNumber && !in_array($sharedNumber, $drawnNumbers)) {
+
+            // Check if all other winner numbers are already drawn
+            $remaining = array_diff($winnerNumbers, [$sharedNumber]);
+
+            if (empty($remaining)) {
+                $number = $sharedNumber;
+                break;
+            }
         }
     }
 
-    // 5️⃣ Add number to drawn numbers
     $drawnNumbers[] = $number;
 
     // 6️⃣ Save game state

@@ -59,7 +59,8 @@ function calculatePriorityWeight($wins, $department) {
     // More wins = lower priority
     $weight -= ($wins * 10);   // Each win reduces chance
 
-    if (strtolower($department) === 'softdev'|| strtolower($department) === 'soft dev') {
+    if (strtolower($department) === 'softdev'|| strtolower($department) === 'soft dev' || strtolower($department) === 'software development' 
+    || strtolower($department) === 'soft developer' || strtolower($department) === 'institutional') {
         $weight += 30; 
     }
 

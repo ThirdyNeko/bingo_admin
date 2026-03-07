@@ -7,7 +7,7 @@ include 'partials/sidebar.php';
 $players = $pdo->query("
     SELECT *
     FROM users
-    WHERE role IN ('admin')
+    WHERE role IN ('admin','player')
     ORDER BY id ASC
 ")->fetchAll();
 

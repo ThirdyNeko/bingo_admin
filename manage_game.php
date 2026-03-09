@@ -276,7 +276,17 @@ function generateRandomBingoCard() {
         <div class="card-body">
             <p><strong>Game Code:</strong> <?= htmlspecialchars($game['game_code']) ?></p>
             <p><strong>Winners Required:</strong> <?= $game['winners'] ?></p>
-            <p><strong>Current Winners:</strong> <?= $game['game_winners'] ?></p>
+            <p><strong>Current Winners:</strong>
+            <?php
+            $winners = json_decode($game['game_winners'], true);
+
+            if (!empty($winners)) {
+                echo htmlspecialchars(implode(', ', $winners));
+            } else {
+                echo 'No winners yet';
+            }
+            ?>
+            </p>
         </div>
     </div>
 

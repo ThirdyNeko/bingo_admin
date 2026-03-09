@@ -26,7 +26,17 @@ $games = $pdo->query("SELECT * FROM game ORDER BY id DESC")->fetchAll();
                         <tr>
                             <td><?= htmlspecialchars($g['game_code']) ?></td>
                             <td><?= $g['winners'] ?></td>
-                            <td><?= $g['game_winners'] ?></td>
+                            <td style="max-width:200px; white-space:normal;">
+                            <?php
+                            $winners = json_decode($g['game_winners'], true);
+
+                            if (!empty($winners)) {
+                                echo htmlspecialchars(implode(', ', $winners));
+                            } else {
+                                echo '—';
+                            }
+                            ?>
+                            </td>
                             <td>
                                 <a href="manage_game.php?game_id=<?= $g['id'] ?>"
                                 class="btn btn-sm btn-primary">

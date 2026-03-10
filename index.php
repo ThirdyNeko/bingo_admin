@@ -30,7 +30,22 @@ include 'partials/sidebar.php';
             <div class="card shadow-sm">
                 <div class="card-body">
                     <h6>Winners Declared</h6>
-                    <h3><?= $pdo->query("SELECT SUM(game_winners) FROM game")->fetchColumn() ?: 0; ?></h3>
+                    <h3>
+                    <?php
+                    $stmt = $pdo->query("SELECT game_winners FROM game");
+
+                    $totalWinners = 0;
+
+                    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                        $winners = json_decode($row['game_winners'], true);
+                        if (is_array($winners)) {
+                            $totalWinners += count($winners);
+                        }
+                    }
+
+                    echo $totalWinners;
+                    ?>
+                    </h3>
                 </div>
             </div>
         </div>

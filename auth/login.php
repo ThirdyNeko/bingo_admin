@@ -19,11 +19,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute([$id_number]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$user || $user['role'] !== 'admin') {
+        if (!$user || !in_array($user['role'], ['admin','gamemaster'])) {
             $error = "Access denied. Admins only.";
         } else {
 
-            // Store admin session
             $_SESSION['admin_logged_in'] = true;
             $_SESSION['user_id'] = $user['id_number'];
             $_SESSION['name'] = $user['name'];

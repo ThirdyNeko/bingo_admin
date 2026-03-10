@@ -1,7 +1,10 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) {
+    session_name('Bingo');
     session_start();
 }
+
+require_once 'auth/require_login.php';
 
 ?>
 

@@ -18,6 +18,12 @@
         Settings
     </a>
 
+    <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
+        <a href="admin.php" class="<?= basename($_SERVER['PHP_SELF'])=='admin.php'?'active-link':'' ?>">
+            Admin
+        </a>
+    <?php endif; ?>
+
     <a href="auth/logout.php" class="text-danger">
         Logout
     </a>

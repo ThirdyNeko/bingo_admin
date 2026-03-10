@@ -14,6 +14,7 @@ require_once 'auth/require_login.php';
     <title>Admin Panel - Bingo</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="bootstrap-icons/font/bootstrap-icons.min.css" rel="stylesheet">
     <script src="js/bootstrap.bundle.min.js"></script>
 
     <style>

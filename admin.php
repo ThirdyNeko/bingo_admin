@@ -11,15 +11,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($userId && $role) {
 
-        $stmt = $pdo->prepare("UPDATE users SET role = ? WHERE id_number = ?");
-        $stmt->execute([$role, $userId]);
+        // If role becomes gamemaster, reset password
+        if ($role === 'gamemaster') {
+
+            $defaultPassword = password_hash("Password", PASSWORD_DEFAULT);
+
+            $stmt = $pdo->prepare("UPDATE users SET role = ?, password = ? WHERE id_number = ?");
+            $stmt->execute([$role, $defaultPassword, $userId]);
+
+        } else {
+
+            $stmt = $pdo->prepare("UPDATE users SET role = ? WHERE id_number = ?");
+            $stmt->execute([$role, $userId]);
+
+        }
 
         $success = "Role updated successfully.";
     }
 }
-
 // Get users
-$users = $pdo->query("SELECT id_number, name, role FROM users ORDER BY name ASC")->fetchAll();
+$users = $pdo->query("SELECT id_number, name, role FROM users WHERE role != 'admin' ORDER BY name ASC")->fetchAll();
 ?>
 
 <div class="col-md-10 p-4">
@@ -66,7 +77,6 @@ $users = $pdo->query("SELECT id_number, name, role FROM users ORDER BY name ASC"
 
 <option value="player" <?= $u['role']=='player'?'selected':'' ?>>Player</option>
 <option value="gamemaster" <?= $u['role']=='gamemaster'?'selected':'' ?>>Game Master</option>
-<option value="admin" <?= $u['role']=='admin'?'selected':'' ?>>Admin</option>
 
 </select>
 

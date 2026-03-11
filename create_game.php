@@ -1,7 +1,5 @@
 <?php
 require_once 'config/db.php';
-include 'partials/header.php';
-include 'partials/sidebar.php';
 
 $success = '';
 $error = '';
@@ -10,6 +8,7 @@ function generateGameCode($length = 5) {
     return 'BINGO-' . strtoupper(substr(bin2hex(random_bytes(5)), 0, $length));
 }
 
+// ======= PROCESS FORM BEFORE HEADER/HTML ======
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $pattern_json = $_POST['pattern_json'] ?? '';
     $winners = (int) ($_POST['winners'] ?? 1);
@@ -25,14 +24,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ");
         $insert->execute([$pattern_json, $winners, $gameCode]);
 
-        // ✅ Get inserted game ID
         $gameId = $pdo->lastInsertId();
 
-        // ✅ Redirect to manage page
+        // ✅ Redirect before any HTML
         header("Location: manage_game.php?game_id=" . $gameId);
         exit;
     }
 }
+
+// ======= NOW INCLUDE HEADER & SIDEBAR ======
+include 'partials/header.php';
+include 'partials/sidebar.php';
 ?>
 
 <div class="col-md-10 p-4 d-flex justify-content-center">

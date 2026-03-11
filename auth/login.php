@@ -18,14 +18,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $stmt = $pdo->prepare("SELECT * FROM users WHERE id_number = ?");
         $stmt->execute([$id_number]);
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        $user = $stmt->fetch();
 
         if (!$user || !in_array($user['role'], ['admin','gamemaster'])) {
             $error = "Access denied. Admins only.";
         } else {
+
             if (!password_verify($password, $user['password'])) {
                 $error = "Incorrect password.";
             } else {
+
                 $_SESSION['admin_logged_in'] = true;
                 $_SESSION['user_id'] = $user['id_number'];
                 $_SESSION['name'] = $user['name'];
@@ -34,6 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 header("Location: ../index.php");
                 exit;
             }
+
         }
     }
 }

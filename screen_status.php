@@ -1,6 +1,8 @@
 <?php
 require_once 'config/db.php';
 
+header('Content-Type: application/json');
+
 if (!isset($_GET['game_id'])) {
     echo json_encode([]);
     exit;

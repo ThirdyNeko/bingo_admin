@@ -3,14 +3,6 @@ require_once 'config/db.php';
 include 'partials/header.php';
 include 'partials/sidebar.php';
 
-/* Get only admins */
-$players = $pdo->query("
-    SELECT *
-    FROM users
-    WHERE role IN ('admin','player')
-    ORDER BY id ASC
-")->fetchAll();
-
 /* Update player settings */
 if (isset($_POST['update_player'])) {
 
@@ -28,6 +20,14 @@ if (isset($_POST['update_player'])) {
     header("Location: settings.php");
     exit;
 }
+
+/* Get only admins */
+$players = $pdo->query("
+    SELECT *
+    FROM users
+    WHERE role IN ('admin','player')
+    ORDER BY id ASC
+")->fetchAll();
 ?>
 
 <div class="col-md-10 p-4">
@@ -51,9 +51,8 @@ if (isset($_POST['update_player'])) {
                 <tbody>
 
                     <?php foreach ($players as $index => $player): ?>
-                    <tr>
-                        <form method="POST">
-
+                    <form method="POST">                        
+                        <tr>
                             <td style="width:60px;">
                                 <?= $index + 1 ?>
                             </td>
@@ -95,9 +94,8 @@ if (isset($_POST['update_player'])) {
                                     Save
                                 </button>
                             </td>
-
-                        </form>
-                    </tr>
+                        <tr>                        
+                    </form>
                     <?php endforeach; ?>
 
                 </tbody>
@@ -107,7 +105,5 @@ if (isset($_POST['update_player'])) {
         </div>
     </div>
 </div>
-
-</div></div>
 </body>
 </html>

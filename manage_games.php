@@ -51,6 +51,6 @@ $games = $pdo->query("SELECT * FROM game ORDER BY id DESC")->fetchAll();
     </div>
 </div>
 
-</div></div>
+</div>
 </body>
 </html>

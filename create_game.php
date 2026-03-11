@@ -174,9 +174,6 @@ document.getElementById('resetPattern').addEventListener('click', function() {
 });
 </script>
 
-</div></div>
-</body>
-</html>
-</div></div>
+</div>
 </body>
 </html>

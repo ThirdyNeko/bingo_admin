@@ -69,13 +69,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
     
 
     // 2️⃣ Get queued winners
+    $limit = (int)$totalWinners;
+
     $queueStmt = $pdo->prepare("
-        SELECT * FROM game_winner_queue
+        SELECT TOP $limit *
+        FROM game_winner_queue
         WHERE game_id = ? AND claimed = 0
         ORDER BY level ASC
-        LIMIT ?
     ");
-    $queueStmt->execute([$gameId, $totalWinners]);
+    $queueStmt->execute([$gameId]);
     $queuedWinners = $queueStmt->fetchAll();
 
     if (!$queuedWinners) {
@@ -119,7 +121,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
     }
 
     // 4️⃣ Build draw pools
-    $drawPool = array_unique(array_merge(...$allNeeded));
+    $drawPool = !empty($allNeeded)
+        ? array_unique(array_merge(...$allNeeded))
+        : [];
 
     $allAvailableNumbers = array_values(array_diff(range(1,75), $drawnNumbers));
     $winnerNumbers = array_values(array_diff($drawPool, $drawnNumbers));

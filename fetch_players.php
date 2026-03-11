@@ -39,8 +39,8 @@ $players = $playersStmt->fetchAll();
     </thead>
     <tbody>
         <?php foreach ($players as $index => $player): ?>
-            <tr>
-                <form method="POST" action="manage_game.php?game_id=<?= $gameId ?>">
+            <form method="POST" action="manage_game.php?game_id=<?= $gameId ?>">
+                <tr>
                     <td style="width:50px; text-align:center;">
                         <?= $index + 1 ?>
                     </td>
@@ -84,8 +84,8 @@ $players = $playersStmt->fetchAll();
                             <span class="text-muted">Locked</span>
                         <?php endif; ?>
                     </td>
-                </form>
-            </tr>
+                </tr>
+            </form>
         <?php endforeach; ?>
     </tbody>
 </table>

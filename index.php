@@ -36,7 +36,7 @@ include 'partials/sidebar.php';
 
                     $totalWinners = 0;
 
-                    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                    while ($row = $stmt->fetch()) {
                         $winners = json_decode($row['game_winners'], true);
                         if (is_array($winners)) {
                             $totalWinners += count($winners);
@@ -51,7 +51,5 @@ include 'partials/sidebar.php';
         </div>
     </div>
 </div>
-
-</div></div>
 </body>
 </html>

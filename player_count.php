@@ -13,6 +13,4 @@ $stmt = $pdo->prepare("
     WHERE current_game = ?
 ");
 $stmt->execute([$gameId]);
-$count = $stmt->fetch();
-
-echo $count['total'];
+echo $stmt->fetchColumn();

@@ -3,7 +3,8 @@ require_once 'config/db.php';
 require_once 'partials/header.php';
 require_once 'partials/sidebar.php';
 
-// Update role
+$success = '';
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $userId = $_POST['user_id'] ?? null;
@@ -11,26 +12,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($userId && $role) {
 
-        // If role becomes gamemaster, reset password
         if ($role === 'gamemaster') {
-
             $defaultPassword = password_hash("Password", PASSWORD_DEFAULT);
 
-            $stmt = $pdo->prepare("UPDATE users SET role = ?, password = ? WHERE id_number = ?");
+            $stmt = $pdo->prepare(
+                "UPDATE users SET role = ?, password = ? WHERE id_number = ?"
+            );
             $stmt->execute([$role, $defaultPassword, $userId]);
-
         } else {
-
             $stmt = $pdo->prepare("UPDATE users SET role = ? WHERE id_number = ?");
             $stmt->execute([$role, $userId]);
-
         }
 
         $success = "Role updated successfully.";
     }
 }
-// Get users
-$users = $pdo->query("SELECT id_number, name, role FROM users WHERE role != 'admin' ORDER BY name ASC")->fetchAll();
+
+// Fetch users (safe)
+$stmt = $pdo->prepare(
+    "SELECT id_number, name, role FROM users WHERE role != ? ORDER BY name ASC"
+);
+$stmt->execute(['admin']);
+$users = $stmt->fetchAll();
 ?>
 
 <div class="col-md-10 p-4">

@@ -30,8 +30,7 @@ $options = [
     PDO::SQLSRV_ATTR_ENCODING => PDO::SQLSRV_ENCODING_UTF8,
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    PDO::ATTR_PERSISTENT => true,
-    PDO::ATTR_TIMEOUT => 5
+    // Remove unsupported attributes
 ];
 
 
@@ -39,27 +38,22 @@ $options = [
    CONNECT TO SQL SERVER
 ================================ */
 try {
-
     $pdo = new PDO(
         "sqlsrv:Server=$servername;Database=$database;TrustServerCertificate=true",
         $username,
         $password,
         $options
     );
-
 } catch (PDOException $e) {
-
-    errorHandler(E_WARNING, $e->getMessage(), $e->getFile(), $e->getLine());
-    die("Database connection failed.");
-
+    echo "PDO Connection failed: " . $e->getMessage();
+    die();
 }
 
 
 /* ===============================
    GLOBAL ACCESS FUNCTION
 ================================ */
-function qa_db(): PDO
-{
+function qa_db() {
     global $pdo;
     return $pdo;
 }

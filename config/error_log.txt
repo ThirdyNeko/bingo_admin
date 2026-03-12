@@ -12,3 +12,5 @@
 [2026-03-11 15:10:26] Error [2]: SQLSTATE[IMSSP]: An unsupported attribute was designated on the PDO object. in C:\xampp\htdocs\bingo_admin\config\db.php on line 43
 [2026-03-11 16:34:05] Error [2]: Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\bingo_admin\partials\sidebar.php:26) in C:\xampp\htdocs\bingo_admin\create_game.php on line 32
 [2026-03-11 16:34:19] Error [2]: Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\bingo_admin\partials\sidebar.php:26) in C:\xampp\htdocs\bingo_admin\create_game.php on line 32
+[2026-03-12 11:50:03] Error [2]: Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\bingo_admin\partials\sidebar.php:26) in C:\xampp\htdocs\bingo_admin\manage_game.php on line 239
+[2026-03-12 13:25:21] Error [2]: Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\bingo_admin\partials\sidebar.php:26) in C:\xampp\htdocs\bingo_admin\manage_game.php on line 239

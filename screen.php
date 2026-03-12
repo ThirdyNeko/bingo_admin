@@ -64,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
 
     // 1️⃣ Get pattern and drawn numbers first
     $pattern = json_decode($game['pattern'], true);
-    $drawnNumbers = json_decode($game['drawn_numbers'] ?? '[]', true);
+    $drawnNumbers = array_map('intval', json_decode($game['drawn_numbers'] ?? '[]', true));
     $letters = ['B','I','N','G','O'];
     
 
@@ -98,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
         $cardStmt->execute([$winner['card_id']]);
         $rowData = $cardStmt->fetch(PDO::FETCH_ASSOC);
         $cardData = json_decode($rowData['card_data'], true);
-        $sharedNumber = $rowData['shared_number']; // stored during card creation
+        $sharedNumber = (int) $rowData['shared_number']; // stored during card creation
 
         $neededNumbers = [];
 
@@ -153,7 +153,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
     }
 
     // 5️⃣ Shared number trigger (final number for winners)
-
     foreach ($queuedWinners as $winner) {
 
         $cardStmt = $pdo->prepare("
@@ -162,9 +161,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
             WHERE id = ?
         ");
         $cardStmt->execute([$winner['card_id']]);
-        $sharedNumber = $cardStmt->fetchColumn();
+        $sharedNumber = (int) $cardStmt->fetchColumn(); // force integer
 
-        if ($sharedNumber && !in_array($sharedNumber, $drawnNumbers)) {
+        if ($sharedNumber && !in_array($sharedNumber, $drawnNumbers, true)) {
 
             // Check if all other winner numbers are already drawn
             $remaining = array_diff($winnerNumbers, [$sharedNumber]);
@@ -281,8 +280,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
                     </button>
                 </form>
                 <?php
-                $drawnNumbers = json_decode($game['drawn_numbers'] ?? '[]', true);
-                $lastNumber = end($drawnNumbers);
+                // ✅ Make sure all drawn numbers are integers
+                $drawnNumbers = array_map('intval', json_decode($game['drawn_numbers'] ?? '[]', true));
+                $lastNumber = (int)end($drawnNumbers);
 
                 if ($lastNumber):
 

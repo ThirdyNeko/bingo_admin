@@ -161,20 +161,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['start_game'])) {
     }
 
     // 4️⃣ Build winner queue
-    $otherCards = array_diff($allCardIds,$winnerCardIds);
-    $queueOrder = array_merge($winnerCardIds,$otherCards);
+
+    $otherCards = array_values(array_diff($allCardIds, $winnerCardIds));
+
     $winnerQueue = [];
-    $queueLevel = 1;
-    while(!empty($queueOrder)){
-        $levelCards=array_splice($queueOrder,0,$queueLevel);
-        $winnerQueue[]=$levelCards;
+
+    /* Level 1 = all winners */
+    $winnerQueue[] = $winnerCardIds;
+
+    /* Remaining cards */
+    $queueLevel = count($winnerCardIds) + 1;
+
+    while (!empty($otherCards)) {
+
+        $levelCards = array_splice($otherCards, 0, $queueLevel);
+
+        if (!empty($levelCards)) {
+            $winnerQueue[] = $levelCards;
+        }
+
         $queueLevel++;
     }
-    foreach($winnerQueue as $levelIndex=>$cards){
-        $level=$levelIndex+1;
-        foreach($cards as $cardId){
-            $stmt=$pdo->prepare("INSERT INTO game_winner_queue (game_id, level, card_id) VALUES (?,?,?)");
-            $stmt->execute([$gameId,$level,$cardId]);
+
+
+    /* Insert into DB */
+
+    foreach ($winnerQueue as $levelIndex => $cards) {
+
+        $level = $levelIndex + 1;
+
+        foreach ($cards as $cardId) {
+
+            $stmt = $pdo->prepare("
+                INSERT INTO game_winner_queue (game_id, level, card_id)
+                VALUES (?, ?, ?)
+            ");
+
+            $stmt->execute([$gameId, $level, $cardId]);
         }
     }
 

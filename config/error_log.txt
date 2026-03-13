@@ -14,3 +14,8 @@
 [2026-03-11 16:34:19] Error [2]: Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\bingo_admin\partials\sidebar.php:26) in C:\xampp\htdocs\bingo_admin\create_game.php on line 32
 [2026-03-12 11:50:03] Error [2]: Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\bingo_admin\partials\sidebar.php:26) in C:\xampp\htdocs\bingo_admin\manage_game.php on line 239
 [2026-03-12 13:25:21] Error [2]: Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\bingo_admin\partials\sidebar.php:26) in C:\xampp\htdocs\bingo_admin\manage_game.php on line 239
+[2026-03-13 10:10:00] Error [2]: Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\bingo_admin\partials\sidebar.php:26) in C:\xampp\htdocs\bingo_admin\settings.php on line 20
+[2026-03-13 10:10:04] Error [2]: Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\bingo_admin\partials\sidebar.php:26) in C:\xampp\htdocs\bingo_admin\settings.php on line 20
+[2026-03-13 10:10:07] Error [2]: Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\bingo_admin\partials\sidebar.php:26) in C:\xampp\htdocs\bingo_admin\settings.php on line 20
+[2026-03-13 10:10:12] Error [2]: Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\bingo_admin\partials\sidebar.php:26) in C:\xampp\htdocs\bingo_admin\settings.php on line 20
+[2026-03-13 10:10:15] Error [2]: Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\bingo_admin\partials\sidebar.php:26) in C:\xampp\htdocs\bingo_admin\settings.php on line 20

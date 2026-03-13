@@ -1,9 +1,7 @@
 <?php
 require_once 'config/db.php';
-include 'partials/header.php';
-include 'partials/sidebar.php';
 
-/* Update player settings */
+/* Update player settings BEFORE any output */
 if (isset($_POST['update_player'])) {
 
     $userId = (int)$_POST['user_id'];
@@ -21,13 +19,17 @@ if (isset($_POST['update_player'])) {
     exit;
 }
 
-/* Get only admins */
+/* Get players */
 $players = $pdo->query("
     SELECT *
     FROM users
     WHERE role IN ('admin','player')
     ORDER BY id ASC
 ")->fetchAll();
+
+/* Include layout AFTER logic */
+include 'partials/header.php';
+include 'partials/sidebar.php';
 ?>
 
 <div class="col-md-10 p-4">

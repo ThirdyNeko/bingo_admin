@@ -126,30 +126,111 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
         : [];
 
     $allAvailableNumbers = array_values(array_diff(range(1,75), $drawnNumbers));
+
+    /* ==============================
+    SMART DRAW ENGINE
+    ============================== */
+
     $winnerNumbers = array_values(array_diff($drawPool, $drawnNumbers));
 
-    // Random draw chance increases game pacing
-    $drawCount = (int)($game['draw_count'] ?? 0);
+    $neutralPool = array_values(array_diff($allAvailableNumbers, $drawPool));
 
-    // early game mostly random
-    $progressChance = min(20 + ($drawCount * 2), 60); 
-    // starts at 20% → slowly increases to 60%
+    $dangerPool = [];
+    $blockedNumbers = [];
 
-    if (!empty($winnerNumbers) && rand(1,100) <= $progressChance) {
 
-        // Progress a winner card
-        $number = $winnerNumbers[array_rand($winnerNumbers)];
+    // Get ALL cards in game
+    $cardsStmt = $pdo->prepare("
+        SELECT id, card_data
+        FROM user_cards
+        WHERE game_id = ?
+    ");
+    $cardsStmt->execute([$gameId]);
+    $cards = $cardsStmt->fetchAll(PDO::FETCH_ASSOC);
 
-    } else {
 
-        // Random draw (avoid helping winners too much)
-        $randomPool = array_values(array_diff($allAvailableNumbers, $winnerNumbers));
+    foreach ($cards as $card) {
 
-        if (empty($randomPool)) {
-            $randomPool = $allAvailableNumbers;
+        $cardData = json_decode($card['card_data'], true);
+
+        $missing = [];
+
+        foreach ($pattern as $r => $cols) {
+            foreach ($cols as $c => $val) {
+
+                if ($val == 1) {
+
+                    $num = $cardData[$letters[$c]][$r] ?? null;
+
+                    if ($num !== null && $num !== "FREE" && !in_array($num, $drawnNumbers)) {
+                        $missing[] = $num;
+                    }
+                }
+            }
         }
 
-        $number = $randomPool[array_rand($randomPool)];
+        if (count($missing) == 1) {
+
+            $lastNumber = $missing[0];
+
+            // check if this card belongs to queued winners
+            $isQueued = false;
+
+            foreach ($queuedWinners as $qw) {
+                if ($qw['card_id'] == $card['id']) {
+                    $isQueued = true;
+                    break;
+                }
+            }
+
+            if (!$isQueued) {
+                $blockedNumbers[] = $lastNumber;
+            }
+        }
+    }
+
+    $blockedNumbers = array_unique($blockedNumbers);
+
+
+    /* Remove blocked numbers from pools */
+
+    $winnerNumbers = array_values(array_diff($winnerNumbers, $blockedNumbers));
+    $neutralPool = array_values(array_diff($neutralPool, $blockedNumbers));
+    $allAvailableNumbers = array_values(array_diff($allAvailableNumbers, $blockedNumbers));
+
+
+    /* ==============================
+    DRAW PROBABILITY SYSTEM
+    ============================== */
+
+    $drawCount = (int)($game['draw_count'] ?? 0);
+
+    $winnerChance = min(20 + ($drawCount * 3), 75);
+    $dangerChance = 15;
+
+    $roll = rand(1,100);
+
+
+    if (!empty($winnerNumbers) && $roll <= $winnerChance) {
+
+        $number = $winnerNumbers[array_rand($winnerNumbers)];
+
+    } elseif ($roll <= ($winnerChance + $dangerChance)) {
+
+        if (!empty($allAvailableNumbers)) {
+            $number = $allAvailableNumbers[array_rand($allAvailableNumbers)];
+        } else {
+            $number = $neutralPool[array_rand($neutralPool)];
+        }
+
+    }else {
+
+        if (!empty($neutralPool)) {
+            $number = $neutralPool[array_rand($neutralPool)];
+        } else {
+            $number = $allAvailableNumbers[array_rand($allAvailableNumbers)];
+        }
+
     }
 
     // 5️⃣ Shared number trigger (final number for winners)
@@ -166,7 +247,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
         if ($sharedNumber && !in_array($sharedNumber, $drawnNumbers, true)) {
 
             // Check if all other winner numbers are already drawn
-            $remaining = array_diff($winnerNumbers, [$sharedNumber]);
+            $remaining = array_diff($drawPool, $drawnNumbers, [$sharedNumber]);
 
             if (empty($remaining)) {
                 $number = $sharedNumber;
@@ -175,7 +256,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
         }
     }
 
-    $drawnNumbers[] = $number;
+    if (!in_array($number, $drawnNumbers)) {
+        $drawnNumbers[] = $number;
+    }
 
     // 6️⃣ Save game state
     $pdo->prepare("

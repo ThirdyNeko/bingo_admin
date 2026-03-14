@@ -55,7 +55,7 @@ $playerCount = $countStmt->fetchColumn();
 /* ==============================
    QR CODE LINK
 ============================== */
-$registerUrl = "https://192.168.40.14/bingo/index.php?game_code=" . urlencode($game['game_code']);
+$registerUrl = "http://192.168.40.14/bingo/index.php?game_code=" . urlencode($game['game_code']);
 $qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" . urlencode($registerUrl);
 
 $started = (int)$game['started'] === 1;

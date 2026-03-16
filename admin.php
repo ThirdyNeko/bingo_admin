@@ -5,32 +5,34 @@ require_once 'partials/sidebar.php';
 
 $success = '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['roles'])) {
 
-    $userId = $_POST['user_id'] ?? null;
-    $role = $_POST['role'] ?? null;
-
-    if ($userId && $role) {
+    foreach ($_POST['roles'] as $userId => $role) {
 
         if ($role === 'gamemaster') {
+
             $defaultPassword = password_hash("Password", PASSWORD_DEFAULT);
 
             $stmt = $pdo->prepare(
                 "UPDATE users SET role = ?, password = ? WHERE id_number = ?"
             );
             $stmt->execute([$role, $defaultPassword, $userId]);
+
         } else {
-            $stmt = $pdo->prepare("UPDATE users SET role = ? WHERE id_number = ?");
+
+            $stmt = $pdo->prepare(
+                "UPDATE users SET role = ?, password = NULL WHERE id_number = ?"
+            );
             $stmt->execute([$role, $userId]);
         }
-
-        $success = "Role updated successfully.";
     }
+
+    $success = "Roles updated successfully.";
 }
 
-// Fetch users (safe)
+// Fetch users
 $stmt = $pdo->prepare(
-    "SELECT id_number, name, role FROM users WHERE role != ? ORDER BY name ASC"
+    "SELECT id_number, department, name, role FROM users WHERE role != ? ORDER BY id_number ASC"
 );
 $stmt->execute(['admin']);
 $users = $stmt->fetchAll();
@@ -44,16 +46,28 @@ $users = $stmt->fetchAll();
 <div class="alert alert-success"><?= $success ?></div>
 <?php endif; ?>
 
+<form method="POST">
+
 <div class="card shadow-sm">
+
+<div class="card-header d-flex justify-content-between align-items-center">
+<strong>Users</strong>
+
+<button class="btn btn-success btn-sm">
+<i class="bi bi-save"></i> Update All
+</button>
+</div>
+
 <div class="card-body">
 
 <table class="table table-striped">
+
 <thead>
 <tr>
 <th>ID</th>
 <th>Name</th>
+<th>Department</th>
 <th>Role</th>
-<th>Change Role</th>
 </tr>
 </thead>
 
@@ -62,32 +76,21 @@ $users = $stmt->fetchAll();
 <?php foreach ($users as $u): ?>
 
 <tr>
+
 <td><?= htmlspecialchars($u['id_number']) ?></td>
 <td><?= htmlspecialchars($u['name']) ?></td>
+<td><?= htmlspecialchars($u['department']) ?></td>
 
 <td>
-<span class="badge bg-primary">
-<?= htmlspecialchars($u['role']) ?>
-</span>
-</td>
 
-<td>
-<form method="POST" class="d-flex gap-2">
-
-<input type="hidden" name="user_id" value="<?= $u['id_number'] ?>">
-
-<select name="role" class="form-select form-select-sm">
+<select name="roles[<?= $u['id_number'] ?>]" class="form-select form-select-sm">
 
 <option value="player" <?= $u['role']=='player'?'selected':'' ?>>Player</option>
+<option value="priority" <?= $u['role']=='priority'?'selected':'' ?>>Priority</option>
 <option value="gamemaster" <?= $u['role']=='gamemaster'?'selected':'' ?>>Game Master</option>
 
 </select>
 
-<button class="btn btn-sm btn-success">
-Update
-</button>
-
-</form>
 </td>
 
 </tr>
@@ -95,9 +98,12 @@ Update
 <?php endforeach; ?>
 
 </tbody>
+
 </table>
 
 </div>
 </div>
+
+</form>
 
 </div>

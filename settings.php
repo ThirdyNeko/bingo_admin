@@ -1,19 +1,23 @@
 <?php
 require_once 'config/db.php';
 
-/* Update player settings BEFORE any output */
-if (isset($_POST['update_player'])) {
+/* Update ALL player settings BEFORE output */
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['card_count'])) {
 
-    $userId = (int)$_POST['user_id'];
-    $cardCount = max(1, (int)$_POST['card_count']);
-    $autoMode = isset($_POST['auto_mode']) ? 1 : 0;
+    foreach ($_POST['card_count'] as $userId => $cardCount) {
 
-    $stmt = $pdo->prepare("
-        UPDATE users
-        SET auto_mode = ?, card_count = ?
-        WHERE id = ?
-    ");
-    $stmt->execute([$autoMode, $cardCount, $userId]);
+        $userId = (int)$userId;
+        $cardCount = max(1, (int)$cardCount);
+        $autoMode = isset($_POST['auto_mode'][$userId]) ? 1 : 0;
+
+        $stmt = $pdo->prepare("
+            UPDATE users
+            SET auto_mode = ?, card_count = ?
+            WHERE id = ?
+        ");
+
+        $stmt->execute([$autoMode, $cardCount, $userId]);
+    }
 
     header("Location: settings.php");
     exit;
@@ -23,7 +27,7 @@ if (isset($_POST['update_player'])) {
 $players = $pdo->query("
     SELECT *
     FROM users
-    WHERE role IN ('admin','player')
+    WHERE role IN ('admin','priority')
     ORDER BY id ASC
 ")->fetchAll();
 
@@ -33,79 +37,92 @@ include 'partials/sidebar.php';
 ?>
 
 <div class="col-md-10 p-4">
-    <h3 class="mb-4">Player Settings</h3>
 
-    <div class="card shadow-sm">
-        <div class="card-body table-responsive">
+<h3 class="mb-4">Player Settings</h3>
 
-            <table class="table table-striped align-middle">
+<form method="POST">
 
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Name</th>
-                        <th>Mode</th>
-                        <th>Cards</th>
-                        <th>Save</th>
-                    </tr>
-                </thead>
+<div class="card shadow-sm">
 
-                <tbody>
+<div class="card-header d-flex justify-content-between align-items-center">
+<strong>Players</strong>
 
-                    <?php foreach ($players as $index => $player): ?>
-                    <form method="POST">                        
-                        <tr>
-                            <td style="width:60px;">
-                                <?= $index + 1 ?>
-                            </td>
+<button class="btn btn-success btn-sm">
+<i class="bi bi-save"></i> Update All
+</button>
 
-                            <td>
-                                <?= htmlspecialchars($player['name']) ?>
-                            </td>
+</div>
 
-                            <!-- AUTO / MANUAL -->
-                            <td style="width:150px;">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input"
-                                           type="checkbox"
-                                           name="auto_mode"
-                                           value="1"
-                                           <?= $player['auto_mode'] ? 'checked' : '' ?>>
-                                    <label class="form-check-label">
-                                        Auto
-                                    </label>
-                                </div>
-                            </td>
+<div class="card-body table-responsive">
 
-                            <!-- CARD COUNT -->
-                            <td style="width:120px;">
-                                <input type="number"
-                                       name="card_count"
-                                       class="form-control"
-                                       min="1"
-                                       value="<?= $player['card_count'] ?? 1 ?>">
-                            </td>
+<table class="table table-striped align-middle">
 
-                            <!-- SAVE -->
-                            <td style="width:120px;">
-                                <input type="hidden" name="user_id" value="<?= $player['id'] ?>">
+<thead>
+<tr>
+<th>#</th>
+<th>Name</th>
+<th>Mode</th>
+<th>Cards</th>
+</tr>
+</thead>
 
-                                <button type="submit"
-                                        name="update_player"
-                                        class="btn btn-sm btn-success w-100">
-                                    Save
-                                </button>
-                            </td>
-                        <tr>                        
-                    </form>
-                    <?php endforeach; ?>
+<tbody>
 
-                </tbody>
+<?php foreach ($players as $index => $player): ?>
 
-            </table>
+<tr>
 
-        </div>
-    </div>
+<td style="width:60px;">
+<?= $index + 1 ?>
+</td>
+
+<td>
+<?= htmlspecialchars($player['name']) ?>
+</td>
+
+<!-- AUTO / MANUAL -->
+<td style="width:150px;">
+
+<div class="form-check form-switch">
+
+<input class="form-check-input"
+       type="checkbox"
+       name="auto_mode[<?= $player['id'] ?>]"
+       value="1"
+       <?= $player['auto_mode'] ? 'checked' : '' ?>>
+
+<label class="form-check-label">
+Auto
+</label>
+
+</div>
+
+</td>
+
+<!-- CARD COUNT -->
+<td style="width:120px;">
+
+<input type="number"
+       name="card_count[<?= $player['id'] ?>]"
+       class="form-control"
+       min="1"
+       value="<?= $player['card_count'] ?? 1 ?>">
+
+</td>
+
+</tr>
+
+<?php endforeach; ?>
+
+</tbody>
+
+</table>
+
+</div>
+</div>
+
+</form>
+
 </div>
 </body>
 </html>

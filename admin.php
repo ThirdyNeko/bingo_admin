@@ -60,7 +60,7 @@ $users = $stmt->fetchAll();
 
 <div class="card-body">
 
-<table class="table table-striped">
+<table id="usersTable" class="table table-striped">
 
 <thead>
 <tr>
@@ -107,3 +107,17 @@ $users = $stmt->fetchAll();
 </form>
 
 </div>
+
+<link rel="stylesheet" href="css/datatables.min.css">
+<script src="js/jquery-4.0.0.min.js"></script>
+<script src="js/datatables.min.js"></script>
+
+<script>
+$(document).ready(function () {
+    $('.table').DataTable({
+        pageLength: 25,
+        ordering: true,
+        responsive: true
+    });
+});
+</script>

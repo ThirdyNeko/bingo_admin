@@ -11,7 +11,7 @@ $games = $pdo->query("SELECT * FROM game ORDER BY id DESC")->fetchAll();
 
     <div class="card shadow-sm">
         <div class="card-body table-responsive">
-            <table class="table table-striped">
+            <table id="usersTable" class="table table-striped">
                 <thead>
                     <tr>
                         <th>Game Code</th>
@@ -53,4 +53,17 @@ $games = $pdo->query("SELECT * FROM game ORDER BY id DESC")->fetchAll();
 
 </div>
 </body>
+<link rel="stylesheet" href="css/datatables.min.css">
+<script src="js/jquery-4.0.0.min.js"></script>
+<script src="js/datatables.min.js"></script>
+
+<script>
+$(document).ready(function () {
+    $('.table').DataTable({
+        pageLength: 25,
+        ordering: false,
+        responsive: true
+    });
+});
+</script>
 </html>

@@ -55,7 +55,7 @@ include 'partials/sidebar.php';
 
 <div class="card-body table-responsive">
 
-<table class="table table-striped align-middle">
+<table id="usersTable" class="table table-striped">
 
 <thead>
 <tr>
@@ -125,4 +125,17 @@ Auto
 
 </div>
 </body>
+<link rel="stylesheet" href="css/datatables.min.css">
+<script src="js/jquery-4.0.0.min.js"></script>
+<script src="js/datatables.min.js"></script>
+
+<script>
+$(document).ready(function () {
+    $('.table').DataTable({
+        pageLength: 25,
+        ordering: true,
+        responsive: true
+    });
+});
+</script>
 </html>

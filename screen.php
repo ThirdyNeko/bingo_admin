@@ -55,7 +55,7 @@ $playerCount = $countStmt->fetchColumn();
 /* ==============================
    QR CODE LINK
 ============================== */
-$registerUrl = "http://192.168.40.14/bingo/index.php?game_code=" . urlencode($game['game_code']);
+$registerUrl = "http://localhost/bingo/index.php?game_code=" . urlencode($game['game_code']);
 $qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" . urlencode($registerUrl);
 
 $started = (int)$game['started'] === 1;
@@ -86,7 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
 
     // 3️⃣ Collect needed numbers for each winner
     $allNeeded = [];
-    $sharedNumber = null; // this should be stored/assigned at card generation
+    $sharedNumber = null;
 
     foreach ($queuedWinners as $winner) {
 
@@ -98,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
         $cardStmt->execute([$winner['card_id']]);
         $rowData = $cardStmt->fetch(PDO::FETCH_ASSOC);
         $cardData = json_decode($rowData['card_data'], true);
-        $sharedNumber = (int) $rowData['shared_number']; // stored during card creation
+        $sharedNumber = (int) $rowData['shared_number'];
 
         $neededNumbers = [];
 
@@ -108,7 +108,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
                     $num = $cardData[$letters[$c]][$r] ?? null;
 
                     if ($num !== null && $num !== "FREE" && !in_array($num, $drawnNumbers)) {
-                        // ✅ skip shared number until last
                         if ($num != $sharedNumber) {
                             $neededNumbers[] = $num;
                         }
@@ -173,7 +172,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
 
             $lastNumber = $missing[0];
 
-            // check if this card belongs to queued winners
             $isQueued = false;
 
             foreach ($queuedWinners as $qw) {
@@ -242,11 +240,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
             WHERE id = ?
         ");
         $cardStmt->execute([$winner['card_id']]);
-        $sharedNumber = (int) $cardStmt->fetchColumn(); // force integer
+        $sharedNumber = (int) $cardStmt->fetchColumn();
 
         if ($sharedNumber && !in_array($sharedNumber, $drawnNumbers, true)) {
 
-            // Check if all other winner numbers are already drawn
             $remaining = array_diff($drawPool, $drawnNumbers, [$sharedNumber]);
 
             if (empty($remaining)) {
@@ -289,6 +286,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
         .big-number {
             font-size: 5rem;
             font-weight: bold;
+        }
+
+        /* ==============================
+           PREVIOUS NUMBERS SECTION
+        ================================ */
+        #prev-numbers-section {
+            border-top: 1px solid #2a2a2a;
+            padding-top: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .prev-ball {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            font-weight: bold;
+            line-height: 1;
+            border: 2px solid rgba(255,255,255,0.15);
+            flex-shrink: 0;
+        }
+
+        .prev-ball .prev-letter {
+            font-size: 0.6rem;
+            opacity: 0.85;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .prev-ball .prev-num {
+            font-size: 1rem;
+        }
+
+        /* Letter-based colours (same as your bingo-ball palette) */
+        .prev-ball.B { background: radial-gradient(circle at 35% 35%, #4fc3f7, #0277bd); color: #fff; }
+        .prev-ball.I { background: radial-gradient(circle at 35% 35%, #a5d6a7, #2e7d32); color: #fff; }
+        .prev-ball.N { background: radial-gradient(circle at 35% 35%, #ffe082, #f57f17); color: #fff; }
+        .prev-ball.G { background: radial-gradient(circle at 35% 35%, #ef9a9a, #c62828); color: #333; }
+        .prev-ball.O { background: radial-gradient(circle at 35% 35%, #ce93d8, #6a1b9a); color: #fff; }
+
+        /* Drop-in animation for the newest ball */
+        @keyframes dropIn {
+            0%   { opacity: 0; transform: translateY(-60px) scale(1.4); }
+            60%  { transform: translateY(8px) scale(0.95); }
+            80%  { transform: translateY(-4px) scale(1.02); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .newest-ball {
+            animation: dropIn 0.55s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+            box-shadow: 0 0 14px rgba(255,255,255,0.35);
+        }
+
+        /* Fade older balls slightly */
+        .prev-ball:not(.newest-ball) {
+            opacity: 0.65;
+            transition: opacity 0.3s;
+        }
+        .prev-ball:not(.newest-ball):hover {
+            opacity: 1;
         }
     </style>
 </head>
@@ -362,6 +422,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
                         Draw Number
                     </button>
                 </form>
+
                 <?php
                 // ✅ Make sure all drawn numbers are integers
                 $drawnNumbers = array_map('intval', json_decode($game['drawn_numbers'] ?? '[]', true));
@@ -392,6 +453,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
                         </div>
                         <p class="lead mt-3">Last number drawn</p>
                     </div>
+                <?php endif; ?>
+
+                <!-- ==============================
+                     PREVIOUS NUMBERS TICKER
+                ================================ -->
+                <?php
+                // All drawn except the current last one, newest-first
+                $previousNumbers = array_slice($drawnNumbers, 0, -1);
+                $previousNumbers = array_reverse($previousNumbers);
+                ?>
+                <?php if (!empty($previousNumbers)): ?>
+                <div id="prev-numbers-section" class="mt-2 px-3">
+                    <p class="text-muted small mb-2 text-center">Previously Drawn</p>
+                    <div id="prev-numbers-track" class="d-flex flex-wrap justify-content-center gap-2">
+                        <?php foreach ($previousNumbers as $i => $pn):
+                            if ($pn >= 1 && $pn <= 15)  $pl = 'B';
+                            elseif ($pn <= 30)           $pl = 'I';
+                            elseif ($pn <= 45)           $pl = 'N';
+                            elseif ($pn <= 60)           $pl = 'G';
+                            else                         $pl = 'O';
+                        ?>
+                            <div class="prev-ball <?= $pl ?><?= $i === 0 ? ' newest-ball' : '' ?>">
+                                <span class="prev-letter"><?= $pl ?></span>
+                                <span class="prev-num"><?= $pn ?></span>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
                 <?php endif; ?>
 
             </div>

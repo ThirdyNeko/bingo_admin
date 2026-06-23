@@ -5,7 +5,7 @@ $success = '';
 $error = '';
 
 function generateGameCode($length = 5) {
-    return 'BINGO-' . strtoupper(substr(bin2hex(random_bytes(5)), 0, $length));
+    return strtoupper(substr(bin2hex(random_bytes(5)), 0, $length));
 }
 
 // ======= PROCESS FORM BEFORE HEADER/HTML ======

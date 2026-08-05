@@ -289,7 +289,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
         }
 
         /* ==============================
-           PREVIOUS NUMBERS SECTION
+        PREVIOUS NUMBERS SECTION
         ================================ */
         #prev-numbers-section {
             border-top: 1px solid #2a2a2a;
@@ -297,13 +297,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
             margin-top: 1.5rem;
         }
 
-        .prev-ball {
-            display: inline-flex;
-            flex-direction: column;
+        .prev-letter-row {
+            background: rgba(255,255,255,0.03);
+            border-radius: 10px;
+            padding: 0.5rem 0.75rem;
+        }
+
+        .prev-letter-label {
+            display: flex;
             align-items: center;
             justify-content: center;
-            width: 52px;
-            height: 52px;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 1rem;
+            flex-shrink: 0;
+            color: #fff;
+        }
+
+        .prev-letter-label.B { background: #0277bd; }
+        .prev-letter-label.I { background: #2e7d32; }
+        .prev-letter-label.N { background: #f57f17; }
+        .prev-letter-label.G { background: #c62828; }
+        .prev-letter-label.O { background: #6a1b9a; }
+
+        .prev-ball {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 44px;
+            height: 44px;
             border-radius: 50%;
             font-weight: bold;
             line-height: 1;
@@ -311,18 +335,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
             flex-shrink: 0;
         }
 
-        .prev-ball .prev-letter {
-            font-size: 0.6rem;
-            opacity: 0.85;
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
-        }
-
         .prev-ball .prev-num {
             font-size: 1rem;
         }
 
-        /* Letter-based colours (same as your bingo-ball palette) */
+        /* Letter-based colours (same palette) */
         .prev-ball.B { background: radial-gradient(circle at 35% 35%, #4fc3f7, #0277bd); color: #fff; }
         .prev-ball.I { background: radial-gradient(circle at 35% 35%, #a5d6a7, #2e7d32); color: #fff; }
         .prev-ball.N { background: radial-gradient(circle at 35% 35%, #ffe082, #f57f17); color: #fff; }
@@ -342,7 +359,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
             box-shadow: 0 0 14px rgba(255,255,255,0.35);
         }
 
-        /* Fade older balls slightly */
         .prev-ball:not(.newest-ball) {
             opacity: 0.65;
             transition: opacity 0.3s;
@@ -456,28 +472,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['draw_number'])) {
                 <?php endif; ?>
 
                 <!-- ==============================
-                     PREVIOUS NUMBERS TICKER
+                    PREVIOUS NUMBERS TICKER (grouped by letter)
                 ================================ -->
                 <?php
-                // All drawn except the current last one, newest-first
+                // All drawn except the current last one, kept in draw order (oldest -> newest)
                 $previousNumbers = array_slice($drawnNumbers, 0, -1);
-                $previousNumbers = array_reverse($previousNumbers);
+                $mostRecentPrev  = !empty($previousNumbers) ? end($previousNumbers) : null;
+
+                $groupedPrev = ['B' => [], 'I' => [], 'N' => [], 'G' => [], 'O' => []];
+                foreach ($previousNumbers as $pn) {
+                    if ($pn >= 1 && $pn <= 15)      $groupedPrev['B'][] = $pn;
+                    elseif ($pn <= 30)              $groupedPrev['I'][] = $pn;
+                    elseif ($pn <= 45)              $groupedPrev['N'][] = $pn;
+                    elseif ($pn <= 60)              $groupedPrev['G'][] = $pn;
+                    else                             $groupedPrev['O'][] = $pn;
+                }
+                foreach ($groupedPrev as &$nums) {
+                    sort($nums);
+                }
+                unset($nums);
                 ?>
                 <?php if (!empty($previousNumbers)): ?>
                 <div id="prev-numbers-section" class="mt-2 px-3">
                     <p class="text-muted small mb-2 text-center">Previously Drawn</p>
-                    <div id="prev-numbers-track" class="d-flex flex-wrap justify-content-center gap-2">
-                        <?php foreach ($previousNumbers as $i => $pn):
-                            if ($pn >= 1 && $pn <= 15)  $pl = 'B';
-                            elseif ($pn <= 30)           $pl = 'I';
-                            elseif ($pn <= 45)           $pl = 'N';
-                            elseif ($pn <= 60)           $pl = 'G';
-                            else                         $pl = 'O';
-                        ?>
-                            <div class="prev-ball <?= $pl ?><?= $i === 0 ? ' newest-ball' : '' ?>">
-                                <span class="prev-letter"><?= $pl ?></span>
-                                <span class="prev-num"><?= $pn ?></span>
-                            </div>
+                    <div id="prev-numbers-track" class="d-flex flex-column gap-2">
+                        <?php foreach ($groupedPrev as $letter => $nums): ?>
+                            <?php if (!empty($nums)): ?>
+                                <div class="prev-letter-row d-flex align-items-center gap-2 flex-wrap">
+                                    <div class="prev-letter-label <?= $letter ?>"><?= $letter ?></div>
+                                    <?php foreach ($nums as $pn): ?>
+                                        <div class="prev-ball <?= $letter ?><?= $pn === $mostRecentPrev ? ' newest-ball' : '' ?>">
+                                            <span class="prev-num"><?= $pn ?></span>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
                         <?php endforeach; ?>
                     </div>
                 </div>

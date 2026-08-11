@@ -2,8 +2,6 @@
 require_once 'config/db.php';
 include 'partials/header.php';
 include 'partials/sidebar.php';
-
-$games = $pdo->query("SELECT * FROM game ORDER BY id DESC")->fetchAll();
 ?>
 
 <div class="col-md-10 p-4">
@@ -11,7 +9,7 @@ $games = $pdo->query("SELECT * FROM game ORDER BY id DESC")->fetchAll();
 
     <div class="card shadow-sm">
         <div class="card-body table-responsive">
-            <table id="usersTable" class="table table-striped">
+            <table id="gamesTable" class="table table-striped" style="width:100%">
                 <thead>
                     <tr>
                         <th>Game Code</th>
@@ -20,32 +18,7 @@ $games = $pdo->query("SELECT * FROM game ORDER BY id DESC")->fetchAll();
                         <th>Action</th>
                     </tr>
                 </thead>
-
-                <tbody>
-                    <?php foreach($games as $g): ?>
-                        <tr>
-                            <td><?= htmlspecialchars($g['game_code']) ?></td>
-                            <td><?= $g['winners'] ?></td>
-                            <td style="max-width:200px; white-space:normal;">
-                            <?php
-                            $winners = json_decode($g['game_winners'], true);
-
-                            if (!empty($winners)) {
-                                echo htmlspecialchars(implode(', ', $winners));
-                            } else {
-                                echo '—';
-                            }
-                            ?>
-                            </td>
-                            <td>
-                                <a href="manage_game.php?game_id=<?= $g['id'] ?>"
-                                class="btn btn-sm btn-primary">
-                                    Manage
-                                </a>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
+                <tbody></tbody>
             </table>
         </div>
     </div>
@@ -57,13 +30,5 @@ $games = $pdo->query("SELECT * FROM game ORDER BY id DESC")->fetchAll();
 <script src="js/jquery-4.0.0.min.js"></script>
 <script src="js/datatables.min.js"></script>
 
-<script>
-$(document).ready(function () {
-    $('.table').DataTable({
-        pageLength: 25,
-        ordering: false,
-        responsive: true
-    });
-});
-</script>
+<script src="js/game/manage_games.js"></script>
 </html>

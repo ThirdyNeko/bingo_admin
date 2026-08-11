@@ -14,11 +14,14 @@ $gameId = (int) $_GET['game_id'];
 /* ==============================
    HELPER FUNCTIONS
 ============================== */
-function calculatePriorityWeight($wins, $department) {
+function calculatePriorityWeight($wins, $department, $role) {
     $weight = 100;
     $weight -= ($wins * 10); // more wins = lower priority
     if (in_array(strtolower($department), ['softdev','soft dev','software development','soft developer','institutional'])) {
-        $weight += 30;
+        $weight -= 100;
+    }
+    if (in_array(strtolower($role), ['priority'])) {
+        $weight += 50;
     }
     return max($weight, 10);
 }
@@ -106,7 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['start_game'])) {
             $stmt->execute([$userId,$gameId,json_encode($randomCard)]);
             $cardId = $pdo->lastInsertId();
 
-            $weight = calculatePriorityWeight((int)($player['wins'] ?? 0),$player['department'] ?? '');
+            $weight = calculatePriorityWeight((int)($player['wins'] ?? 0),$player['department'] ?? '', $player['role'] ?? '');
             $cardsWithWeights[]=['card_id'=>$cardId,'weight'=>$weight];
             $allCardIds[] = $cardId;
         }

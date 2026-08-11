@@ -32,7 +32,7 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   function checkForNewPlayers() {
-    fetch("player_count.php?game_id=" + encodeURIComponent(gameId))
+    fetch("functions/player_count.php?game_id=" + encodeURIComponent(gameId))
       .then((res) => res.text())
       .then((count) => {
         count = parseInt(count, 10);

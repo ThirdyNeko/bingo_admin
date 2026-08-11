@@ -1,6 +1,6 @@
 <?php
 header('Content-Type: application/json');
-require_once 'config/db.php';
+require_once '../config/db.php';
 
 if (!isset($_POST['game_id'])) {
     http_response_code(400);

@@ -52,7 +52,7 @@
                     <div class="input-group">
                         <input type="password" class="form-control" id="current_password" name="current_password" required>
                         <span class="input-group-text toggle-password" data-target="current_password" style="cursor:pointer;">
-                            <i class="bi bi-eye"></i>
+                            <i class="bi bi-eye-slash"></i>
                         </span>
                     </div>
                 </div>
@@ -62,7 +62,7 @@
                     <div class="input-group">
                         <input type="password" class="form-control" id="new_password" name="new_password" required>
                         <span class="input-group-text toggle-password" data-target="new_password" style="cursor:pointer;">
-                            <i class="bi bi-eye"></i>
+                            <i class="bi bi-eye-slash"></i>
                         </span>
                     </div>
                 </div>
@@ -72,7 +72,7 @@
                     <div class="input-group">
                         <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
                         <span class="input-group-text toggle-password" data-target="confirm_password" style="cursor:pointer;">
-                            <i class="bi bi-eye"></i>
+                            <i class="bi bi-eye-slash"></i>
                         </span>
                     </div>
                 </div>
@@ -95,10 +95,10 @@ document.querySelectorAll('.toggle-password').forEach(span => {
         const icon = span.querySelector('i');
         if (target.type === 'password') {
             target.type = 'text';
-            icon.classList.replace('bi-eye', 'bi-eye-slash');
+            icon.classList.replace('bi-eye-slash', 'bi-eye');
         } else {
             target.type = 'password';
-            icon.classList.replace('bi-eye-slash', 'bi-eye');
+            icon.classList.replace('bi-eye', 'bi-eye-slash');
         }
     });
 });

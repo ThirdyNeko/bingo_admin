@@ -304,16 +304,15 @@ include 'partials/sidebar.php';
     <!-- Players -->
     <div class="card shadow-sm">
         <div class="card-header bg-dark text-white">
-            Joined Players (<?= count($players) ?>)
+            Joined Players (<span id="players-count"><?= count($players) ?></span>)
         </div>
 
         <div class="card-body">
-            <div id="players-container">
 
+            <div id="players-table-wrap">
                 <?php if (empty($players)): ?>
                     <p class="text-muted">No players joined yet.</p>
                 <?php else: ?>
-
                     <div class="table-responsive">
                         <table class="table table-bordered align-middle">
                             <thead>
@@ -350,49 +349,72 @@ include 'partials/sidebar.php';
                                 <?php endforeach; ?>
                             </tbody>
                         </table>
-                        <?php if (!$game['started']): ?>
-                            <div class="mt-3">
-                                <form method="POST">
-                                    <button type="submit" name="start_game" class="btn btn-lg btn-primary w-100">
-                                        🚀 Start Game
-                                    </button>
-                                </form>
-                            </div>
-                        <?php else: ?>
-                            <div class="mt-3">
-                                <span class="text-success fw-bold">Game Started ✅</span>
-                            </div>
-                        <?php endif; ?>
                     </div>
-
                 <?php endif; ?>
-                <div class="mt-3">
-                    <a href="screen.php?game_id=<?= $gameId ?>" target="_blank" 
-                    class="btn btn-lg btn-dark w-100">
-                        🎬 Open Game Screen
-                    </a>
-                </div>
             </div>
+
+            <?php if (!$game['started']): ?>
+                <div class="mt-3">
+                    <form method="POST">
+                        <button type="submit" name="start_game" class="btn btn-lg btn-primary w-100">
+                            🚀 Start Game
+                        </button>
+                    </form>
+                </div>
+            <?php else: ?>
+                <div class="mt-3">
+                    <span class="text-success fw-bold">Game Started ✅</span>
+                </div>
+            <?php endif; ?>
+
+            <div class="mt-3">
+                <a href="screen.php?game_id=<?= $gameId ?>" target="_blank"
+                class="btn btn-lg btn-dark w-100">
+                    🎬 Open Game Screen
+                </a>
+            </div>
+
         </div>
     </div>
 
 </div>
 <script>
 let currentCount = <?= count($players) ?>;
+const gameId = <?= $gameId ?>;
 
-function checkForNewPlayers() {
-    fetch('player_count.php?game_id=<?= $gameId ?>')
-        .then(res => res.text())
-        .then(count => {
-            count = parseInt(count);
-
-            if (count !== currentCount) {
-                location.reload(); // reload only if count changed
-            }
-        });
+function refreshPlayersList() {
+    fetch('functions/game_players_partial.php?game_id=' + gameId)
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('players-table-wrap').innerHTML = data.html;
+            document.getElementById('players-count').textContent = data.count;
+            currentCount = data.count;
+        })
+        .catch(err => console.error('Failed to refresh players list:', err));
 }
 
-// Check every 3 seconds
+function checkForNewPlayers() {
+    fetch('functions/player_count.php?game_id=' + gameId)
+        .then(res => res.text())
+        .then(count => {
+            count = parseInt(count, 10);
+
+            // Guard against a bad/empty response so a NaN never triggers
+            // an unnecessary (or endless) refresh.
+            if (!Number.isFinite(count)) {
+                console.error('player_count.php returned a non-numeric value');
+                return;
+            }
+
+            // Only touch the DOM when the player count has actually changed.
+            if (count !== currentCount) {
+                refreshPlayersList();
+            }
+        })
+        .catch(err => console.error('Player count check failed:', err));
+}
+
+// Lightweight poll every 3 seconds — only fetches the full table when needed.
 setInterval(checkForNewPlayers, 3000);
 </script>
 </body>

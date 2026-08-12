@@ -143,7 +143,7 @@ include 'partials/sidebar.php';
 }
 </style>
 
-<script src="assets/js/game/create_game.js"></script>
+<script src="js/game/create_game.js"></script>
 
 </div>
 </body>

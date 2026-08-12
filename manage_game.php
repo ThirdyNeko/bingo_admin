@@ -78,6 +78,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_player'])) {
 }
 
 /* ==============================
+   HANDLE NUMBER REVEAL DURATION UPDATE
+============================== */
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_reveal_duration'])) {
+    $seconds = (float) ($_POST['reveal_duration'] ?? 1.2);
+
+    // Hard clamp to 1–5 seconds regardless of what the client sends.
+    if ($seconds < 1) $seconds = 1;
+    if ($seconds > 5) $seconds = 5;
+
+    $revealDurationMs = (int) round($seconds * 1000);
+
+    $update = $pdo->prepare("UPDATE game SET reveal_duration_ms = ? WHERE id = ?");
+    $update->execute([$revealDurationMs, $gameId]);
+
+    header("Location: manage_game.php?game_id=".$gameId);
+    exit;
+}
+
+/* ==============================
    START GAME HANDLER
 ============================== */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['start_game'])) {
@@ -224,6 +243,9 @@ $playersStmt = $pdo->prepare("SELECT * FROM users WHERE current_game=?");
 $playersStmt->execute([$gameId]);
 $players = $playersStmt->fetchAll();
 
+// Reveal duration is stored in ms; the UI edits it in seconds (1–5).
+$revealDurationSeconds = round((($game['reveal_duration_ms'] ?? 1200)) / 1000, 1);
+
 /* ==============================
    INCLUDE HEADER & SIDEBAR AFTER POST LOGIC
 ============================== */
@@ -253,6 +275,28 @@ include 'partials/sidebar.php';
                 echo 'No winners yet';
             }
             ?>
+            </p>
+
+            <hr>
+
+            <p class="mb-2"><strong>Number Reveal Animation</strong></p>
+            <form method="POST" class="d-flex align-items-center gap-2 flex-wrap">
+                <input type="number"
+                       name="reveal_duration"
+                       class="form-control form-control-sm"
+                       style="max-width:100px;"
+                       min="1"
+                       max="5"
+                       step="0.1"
+                       value="<?= htmlspecialchars($revealDurationSeconds) ?>"
+                       required>
+                <span class="text-muted small">seconds</span>
+                <button type="submit" name="update_reveal_duration" class="btn btn-sm btn-outline-primary">
+                    Save
+                </button>
+            </form>
+            <p class="text-muted small mt-2 mb-0">
+                How long the number "spins" on the Game Screen before the real drawn number is revealed. Must be between 1 and 5 seconds.
             </p>
         </div>
     </div>

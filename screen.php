@@ -137,22 +137,45 @@ $started = (int)$game['started'] === 1;
         }
 
         /* ==============================
-        DISCARD ANIMATION (current ball -> falls down/out)
+        BALL TRANSIT ANIMATION
+        (current ball flies into its slot in the
+        Previously Drawn row, fading as it travels)
         ================================ */
-        @keyframes discardDown {
-            0%   { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
-            30%  { opacity: 1; transform: translateY(20px) scale(0.95) rotate(5deg); }
-            100% { opacity: 0; transform: translateY(160px) scale(0.4) rotate(15deg); }
-        }
-
-        .discard-ball {
-            animation: discardDown 0.45s cubic-bezier(0.5, 0, 0.85, 0) both;
+        .ball-transit {
+            position: fixed;
+            z-index: 2000;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            line-height: 1;
             pointer-events: none;
+            box-shadow: 0 0 14px rgba(255,255,255,0.35);
+            transition:
+                transform 0.55s cubic-bezier(0.65, 0, 0.35, 1),
+                opacity 0.55s ease-in,
+                font-size 0.55s cubic-bezier(0.65, 0, 0.35, 1);
+            will-change: transform, opacity, font-size;
         }
 
         #current-ball-wrap {
             position: relative;
             min-height: 180px;
+        }
+
+        /* ==============================
+        NUMBER CYCLE REVEAL
+        (rapid flicker through random numbers
+        before settling on the actual drawn number)
+        ================================ */
+        .bingo-ball.cycling {
+            animation: cyclePulse 0.18s ease-in-out infinite alternate;
+        }
+
+        @keyframes cyclePulse {
+            from { transform: scale(1); }
+            to   { transform: scale(1.06); }
         }
     </style>
 </head>
@@ -385,6 +408,7 @@ $started = (int)$game['started'] === 1;
      data-started="<?= $started ? 1 : 0 ?>"
      data-claimed-count="<?= $claimedCount ?>"
      data-total-winners="<?= $totalWinners ?>"
+     data-reveal-duration="<?= (int) ($game['reveal_duration_ms'] ?? 1200) ?>"
      style="display:none;"></div>
 
 <script src="sweetalert/dist/sweetalert2.all.min.js"></script>

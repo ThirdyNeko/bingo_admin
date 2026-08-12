@@ -28,11 +28,11 @@ if ($length <= 0) {
 }
 
 // ===== WHERE clause (always scoped to game_id, optional name search) =====
-$where = "WHERE current_game = ?";
+$where = "WHERE u.current_game = ?";
 $params = [$gameId];
 
 if ($searchValue !== '') {
-    $where .= " AND name LIKE ?";
+    $where .= " AND u.name LIKE ?";
     $params[] = '%' . $searchValue . '%';
 }
 
@@ -42,19 +42,22 @@ $totalStmt->execute([$gameId]);
 $totalCount = (int) $totalStmt->fetchColumn();
 
 // ===== Filtered count =====
-$countSql = "SELECT COUNT(*) FROM users $where";
+$countSql = "SELECT COUNT(*) FROM users u $where";
 $countStmt = $pdo->prepare($countSql);
 $countStmt->execute($params);
 $filteredCount = (int) $countStmt->fetchColumn();
 
 // ===== Paged data (ROW_NUMBER for SQL Server 2012 compatibility) =====
+// actual_cards = how many cards actually exist in user_cards for this game right now
+// (only meaningful once the game has started; will be 0 for everyone before that).
 $sql = "
-    SELECT id, name, auto_mode, card_count
+    SELECT id, name, auto_mode, card_count, actual_cards
     FROM (
         SELECT
-            id, name, auto_mode, card_count,
-            ROW_NUMBER() OVER (ORDER BY id ASC) AS rn
-        FROM users
+            u.id, u.name, u.auto_mode, u.card_count,
+            (SELECT COUNT(*) FROM user_cards uc WHERE uc.user_id = u.id AND uc.game_id = ?) AS actual_cards,
+            ROW_NUMBER() OVER (ORDER BY u.id ASC) AS rn
+        FROM users u
         $where
     ) AS paged
     WHERE rn BETWEEN ? AND ?
@@ -63,7 +66,7 @@ $sql = "
 $rowStart = $start + 1;
 $rowEnd   = $start + $length;
 
-$dataParams = array_merge($params, [$rowStart, $rowEnd]);
+$dataParams = array_merge([$gameId], $params, [$rowStart, $rowEnd]);
 
 $stmt = $pdo->prepare($sql);
 $stmt->execute($dataParams);
@@ -79,10 +82,11 @@ foreach ($rows as $p) {
         : '<span class="badge bg-secondary">Manual</span>';
 
     $data[] = [
-        'row_num'    => $rowNum++,
-        'name'       => htmlspecialchars($p['name']),
-        'mode'       => $modeBadge,
-        'card_count' => (int) ($p['card_count'] ?? 1),
+        'row_num'      => $rowNum++,
+        'name'         => htmlspecialchars($p['name']),
+        'mode'         => $modeBadge,
+        'card_count'   => (int) ($p['card_count'] ?? 1),
+        'actual_cards' => (int) ($p['actual_cards'] ?? 0),
     ];
 }
 

@@ -291,7 +291,7 @@ include 'partials/header.php';
 include 'partials/sidebar.php';
 ?>
 
-<div class="col-md-10 p-4" id="manage-game-root" data-game-id="<?= $gameId ?>" data-player-count="<?= $playerCount ?>">
+<div class="col-md-10 p-4" id="manage-game-root" data-game-id="<?= $gameId ?>" data-player-count="<?= $playerCount ?>" data-game-started="<?= $game['started'] ? '1' : '0' ?>">
 
     <h3 class="mb-4">Manage Game</h3>
 

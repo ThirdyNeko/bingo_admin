@@ -3,7 +3,20 @@ document.addEventListener("DOMContentLoaded", function () {
   if (!root) return;
 
   const gameId = root.dataset.gameId;
+  const gameStarted = root.dataset.gameStarted === "1";
   let currentCount = parseInt(root.dataset.playerCount, 10);
+
+  // Which field determines "no cards" depends on game state:
+  // - Before start: card_count is just the player's requested setting,
+  //   nothing has been generated yet, so flag card_count === 0.
+  // - After start: cards actually exist (or don't) in user_cards,
+  //   so flag actual_cards === 0 instead.
+  function hasNoCards(rowData) {
+    if (gameStarted) {
+      return !rowData.actual_cards || rowData.actual_cards <= 0;
+    }
+    return !rowData.card_count || rowData.card_count <= 0;
+  }
 
   const playersTable = $("#playersTable").DataTable({
     processing: true,
@@ -29,9 +42,39 @@ document.addEventListener("DOMContentLoaded", function () {
         data: "card_count",
         orderable: false,
         searchable: false,
-        width: "120px",
+        width: "140px",
+        render: function (data, type, row) {
+          if (type !== "display") return data;
+
+          const label = gameStarted
+            ? (row.actual_cards ?? 0) + " generated"
+            : data + " requested";
+
+          if (hasNoCards(row)) {
+            return (
+              '<span class="text-danger fw-bold">' +
+              label +
+              ' <i class="bi bi-exclamation-triangle-fill" title="No cards"></i>' +
+              "</span>"
+            );
+          }
+          return label;
+        },
       },
     ],
+    // Highlight the whole row for players with no cards, so it's obvious
+    // at a glance before Start Game (missing setting) or after (generation gap).
+    createdRow: function (row, data, dataIndex) {
+      if (hasNoCards(data)) {
+        $(row).addClass("table-danger");
+        $(row).attr(
+          "title",
+          gameStarted
+            ? "This player has no cards in the database for this game."
+            : "This player has 0 requested cards and will not receive one when the game starts.",
+        );
+      }
+    },
   });
 
   function checkForNewPlayers() {

@@ -27,7 +27,13 @@ function calculatePriorityWeight($wins, $department, $role) {
 }
 
 function weightedRandomPick(&$items) {
+    if (empty($items)) {
+        return null;
+    }
     $totalWeight = array_sum(array_column($items, 'weight'));
+    if ($totalWeight <= 0) {
+        return null;
+    }
     $rand = mt_rand(1, $totalWeight);
     foreach ($items as $index => $item) {
         $rand -= $item['weight'];
@@ -111,6 +117,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['start_game'])) {
     $playersStmt->execute([$gameId]);
     $players = $playersStmt->fetchAll();
 
+    // 🚫 Guard: never allow a game to start with no joined players.
+    // Passed back via query param instead of $_SESSION so this can't
+    // interfere with the app's existing session/auth handling.
+    if (empty($players)) {
+        header("Location: manage_game.php?game_id=".$gameId."&error=no_players");
+        exit;
+    }
+
     $letters = ['B','I','N','G','O'];
     $pattern = json_decode($game['pattern'],true);
     $maxWinners = $game['winners'] ?? 2;
@@ -133,6 +147,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['start_game'])) {
             $allCardIds[] = $cardId;
         }
     }
+
+    // 🚫 Guard: if for some reason no cards were generated, bail out cleanly
+    // instead of letting weightedRandomPick blow up on an empty array.
+    if (empty($cardsWithWeights)) {
+        header("Location: manage_game.php?game_id=".$gameId."&error=no_cards");
+        exit;
+    }
+
+    // Never try to pick more winners than there are cards available.
+    $maxWinners = min($maxWinners, count($cardsWithWeights));
 
     // 2️⃣ Pick winner cards
     $winnerCardIds = [];
@@ -232,19 +256,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['start_game'])) {
 }
 
 /* ==============================
-   FETCH GAME AND PLAYERS AFTER POST
+   FETCH GAME AFTER POST
 ============================== */
 $stmt = $pdo->prepare("SELECT * FROM game WHERE id=?");
 $stmt->execute([$gameId]);
 $game = $stmt->fetch();
 if(!$game){ echo "<p class='text-danger'>Game does not exist.</p>"; exit; }
 
-$playersStmt = $pdo->prepare("SELECT * FROM users WHERE current_game=?");
-$playersStmt->execute([$gameId]);
-$players = $playersStmt->fetchAll();
+// Used only to know whether the Start Game button should be enabled/disabled
+// and for the initial players-count badge. The actual table rows are now
+// loaded by the server-side DataTable via functions/game_players_list.php.
+$playerCountStmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE current_game=?");
+$playerCountStmt->execute([$gameId]);
+$playerCount = (int) $playerCountStmt->fetchColumn();
 
 // Reveal duration is stored in ms; the UI edits it in seconds (1–5).
 $revealDurationSeconds = round((($game['reveal_duration_ms'] ?? 1200)) / 1000, 1);
+
+// Error message for the Start Game guard, passed via query param
+// (no session usage — avoids any interference with app auth/session).
+$gameError = null;
+if (isset($_GET['error'])) {
+    $errorMessages = [
+        'no_players' => 'Cannot start the game: no players have joined yet.',
+        'no_cards'   => 'Cannot start the game: no cards could be generated for the joined players.',
+    ];
+    $gameError = $errorMessages[$_GET['error']] ?? null;
+}
 
 /* ==============================
    INCLUDE HEADER & SIDEBAR AFTER POST LOGIC
@@ -253,9 +291,15 @@ include 'partials/header.php';
 include 'partials/sidebar.php';
 ?>
 
-<div class="col-md-10 p-4">
+<div class="col-md-10 p-4" id="manage-game-root" data-game-id="<?= $gameId ?>" data-player-count="<?= $playerCount ?>">
 
     <h3 class="mb-4">Manage Game</h3>
+
+    <?php if ($gameError): ?>
+        <div class="alert alert-danger">
+            <?= htmlspecialchars($gameError) ?>
+        </div>
+    <?php endif; ?>
 
     <!-- Game Info -->
     <div class="card shadow-sm mb-4">
@@ -304,63 +348,40 @@ include 'partials/sidebar.php';
     <!-- Players -->
     <div class="card shadow-sm">
         <div class="card-header bg-dark text-white">
-            Joined Players (<span id="players-count"><?= count($players) ?></span>)
+            Joined Players (<span id="players-count"><?= $playerCount ?></span>)
         </div>
 
         <div class="card-body">
 
-            <div id="players-table-wrap">
-                <?php if (empty($players)): ?>
-                    <p class="text-muted">No players joined yet.</p>
-                <?php else: ?>
-                    <div class="table-responsive">
-                        <table class="table table-bordered align-middle">
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Name</th>
-                                    <th>Mode</th>
-                                    <th>Cards</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($players as $index => $player): ?>
-                                    <tr>
-                                        <td style="width:50px; text-align:center;">
-                                            <?= $index + 1 ?>
-                                        </td>
-
-                                        <td>
-                                            <?= htmlspecialchars($player['name']) ?>
-                                        </td>
-
-                                        <!-- READ ONLY MODE -->
-                                        <td style="width:120px; text-align:center;">
-                                            <span class="badge <?= $player['auto_mode'] ? 'bg-primary' : 'bg-secondary' ?>">
-                                                <?= $player['auto_mode'] ? 'Auto' : 'Manual' ?>
-                                            </span>
-                                        </td>
-
-                                        <!-- READ ONLY CARD COUNT -->
-                                        <td style="width:120px; text-align:center;">
-                                            <?= $player['card_count'] ?? 1 ?>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                <?php endif; ?>
+            <div class="table-responsive">
+                <table id="playersTable" class="table table-bordered align-middle w-100">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Name</th>
+                            <th>Mode</th>
+                            <th>Cards</th>
+                        </tr>
+                    </thead>
+                </table>
             </div>
 
             <?php if (!$game['started']): ?>
-                <div class="mt-3">
-                    <form method="POST">
-                        <button type="submit" name="start_game" class="btn btn-lg btn-primary w-100">
-                            🚀 Start Game
+                <?php if ($playerCount === 0): ?>
+                    <div class="mt-3">
+                        <button type="button" class="btn btn-lg btn-secondary w-100" disabled>
+                            🚀 Start Game (waiting for players to join)
                         </button>
-                    </form>
-                </div>
+                    </div>
+                <?php else: ?>
+                    <div class="mt-3">
+                        <form method="POST">
+                            <button type="submit" name="start_game" class="btn btn-lg btn-primary w-100">
+                                🚀 Start Game
+                            </button>
+                        </form>
+                    </div>
+                <?php endif; ?>
             <?php else: ?>
                 <div class="mt-3">
                     <span class="text-success fw-bold">Game Started ✅</span>
@@ -378,44 +399,10 @@ include 'partials/sidebar.php';
     </div>
 
 </div>
-<script>
-let currentCount = <?= count($players) ?>;
-const gameId = <?= $gameId ?>;
+<link rel="stylesheet" href="css/datatables.min.css">
+<script src="js/jquery-4.0.0.min.js"></script>
+<script src="js/datatables.min.js"></script>
 
-function refreshPlayersList() {
-    fetch('functions/game_players_partial.php?game_id=' + gameId)
-        .then(res => res.json())
-        .then(data => {
-            document.getElementById('players-table-wrap').innerHTML = data.html;
-            document.getElementById('players-count').textContent = data.count;
-            currentCount = data.count;
-        })
-        .catch(err => console.error('Failed to refresh players list:', err));
-}
-
-function checkForNewPlayers() {
-    fetch('functions/player_count.php?game_id=' + gameId)
-        .then(res => res.text())
-        .then(count => {
-            count = parseInt(count, 10);
-
-            // Guard against a bad/empty response so a NaN never triggers
-            // an unnecessary (or endless) refresh.
-            if (!Number.isFinite(count)) {
-                console.error('player_count.php returned a non-numeric value');
-                return;
-            }
-
-            // Only touch the DOM when the player count has actually changed.
-            if (count !== currentCount) {
-                refreshPlayersList();
-            }
-        })
-        .catch(err => console.error('Player count check failed:', err));
-}
-
-// Lightweight poll every 3 seconds — only fetches the full table when needed.
-setInterval(checkForNewPlayers, 3000);
-</script>
+<script src="js/game/manage_game.js"></script>
 </body>
 </html>

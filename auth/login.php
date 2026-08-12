@@ -232,7 +232,7 @@ body {
                                 class="input-group-text toggle-password"
                                 id="togglePassword"
                             >
-                                <i class="bi bi-eye"></i>
+                                <i class="bi bi-eye-slash"></i>
                             </span>
 
                         </div>
@@ -263,7 +263,7 @@ body {
 </div>
 
 
-<script src="../js/admin_login.js"></script>
+<script src="../js/admin/admin_login.js"></script>
 
 </body>
 </html>

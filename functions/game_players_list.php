@@ -3,15 +3,22 @@ require_once '../config/db.php';
 
 header('Content-Type: application/json');
 
+// ===== DataTables request params (read early so the error response can include them) =====
+$draw = isset($_POST['draw']) ? (int) $_POST['draw'] : 1;
+
 if (!isset($_POST['game_id'])) {
-    echo json_encode(['error' => 'Missing game_id']);
+    echo json_encode([
+        'draw'            => $draw,
+        'recordsTotal'    => 0,
+        'recordsFiltered' => 0,
+        'data'            => [],
+        'error'           => 'Missing game_id',
+    ]);
     exit;
 }
 
 $gameId = (int) $_POST['game_id'];
 
-// ===== DataTables request params =====
-$draw   = isset($_POST['draw']) ? (int) $_POST['draw'] : 1;
 $start  = isset($_POST['start']) ? (int) $_POST['start'] : 0;
 $length = isset($_POST['length']) ? (int) $_POST['length'] : 25;
 $searchValue = trim($_POST['search']['value'] ?? '');

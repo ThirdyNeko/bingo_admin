@@ -33,6 +33,13 @@ document.addEventListener("DOMContentLoaded", function () {
       data: function (d) {
         d.game_id = gameId;
       },
+      error: function (xhr, status, error) {
+        console.error("=== GAME PLAYERS AJAX ERROR ===");
+        console.error("HTTP Status:", xhr.status);
+        console.error("Status:", status);
+        console.error("Error:", error);
+        console.error("Response:", xhr.responseText);
+      },
     },
     columns: [
       { data: "row_num", orderable: false, searchable: false, width: "50px" },
@@ -78,23 +85,45 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   function checkForNewPlayers() {
-    fetch("functions/player_count.php?game_id=" + encodeURIComponent(gameId))
-      .then((res) => res.text())
+    fetch("functions/player_count.php?game_id=" + encodeURIComponent(gameId), {
+      credentials: "same-origin",
+    })
+      .then((res) => {
+        console.log("player_count HTTP:", res.status);
+        console.log("player_count URL:", res.url);
+
+        return res.text();
+      })
       .then((count) => {
-        count = parseInt(count, 10);
+        console.log("player_count response:", count);
+
+        count = parseInt(count.trim(), 10);
 
         if (!Number.isFinite(count)) {
-          console.error("player_count.php returned a non-numeric value");
+          console.error(
+            "player_count.php returned a non-numeric value:",
+            count,
+          );
           return;
         }
 
         if (count !== currentCount) {
+          console.log("Player count changed:", currentCount, "→", count);
+
           currentCount = count;
-          document.getElementById("players-count").textContent = count;
-          playersTable.ajax.reload(null, false); // reload data, keep current page
+
+          const countElement = document.getElementById("players-count");
+
+          if (countElement) {
+            countElement.textContent = count;
+          }
+
+          playersTable.ajax.reload(null, false);
         }
       })
-      .catch((err) => console.error("Player count check failed:", err));
+      .catch((err) => {
+        console.error("Player count check failed:", err);
+      });
   }
 
   // Check every 3 seconds

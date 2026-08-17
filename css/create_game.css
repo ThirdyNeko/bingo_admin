@@ -1,0 +1,24 @@
+.bingo-table td,
+.bingo-table th {
+    width: 60px;
+    height: 60px;
+    text-align: center;
+    vertical-align: middle;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.2s ease-in-out;
+}
+
+.pattern-cell:hover {
+    transform: scale(1.05);
+}
+
+.pattern-cell.active {
+    background-color: #198754 !important;
+    color: white;
+}
+
+.free {
+    background-color: #ffc107 !important;
+    color: black;
+}

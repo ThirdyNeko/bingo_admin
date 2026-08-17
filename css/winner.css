@@ -1,0 +1,20 @@
+/*----------------
+      WINNER
+-----------------*/
+
+
+.winner-card {
+    background: #1c1c1c;
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+    transition: 0.3s;
+}
+
+.winner-card:hover {
+    transform: scale(1.03);
+}
+
+.gold { color: gold; }
+.silver { color: silver; }
+.bronze { color: #cd7f32; }

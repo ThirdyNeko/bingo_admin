@@ -1,25 +1,4 @@
 /*----------------
-      WINNER
------------------*/
-
-
-.winner-card {
-    background: #1c1c1c;
-    border-radius: 15px;
-    padding: 20px;
-    margin-bottom: 20px;
-    transition: 0.3s;
-}
-
-.winner-card:hover {
-    transform: scale(1.03);
-}
-
-.gold { color: gold; }
-.silver { color: silver; }
-.bronze { color: #cd7f32; }
-
-/*----------------
     BINGO BALL
 -----------------*/
 
@@ -86,4 +65,134 @@
     background: rgba(255,255,255,0.3);
     border-radius: 50%;
     transform: rotate(-20deg);
+}
+
+/*----------------
+   GAME SCREEN
+-----------------*/
+
+body {
+    background: #111;
+    color: white;
+}
+
+.big-number {
+    font-size: 5rem;
+    font-weight: bold;
+}
+
+#prev-numbers-section {
+    border-top: 1px solid #2a2a2a;
+    padding-top: 1rem;
+    margin-top: 1.5rem;
+}
+
+.prev-letter-row {
+    background: rgba(255,255,255,0.03);
+    border-radius: 10px;
+    padding: 0.5rem 0.75rem;
+}
+
+.prev-letter-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 1rem;
+    flex-shrink: 0;
+    color: #fff;
+}
+
+.prev-letter-label.B { background: #0277bd; }
+.prev-letter-label.I { background: #2e7d32; }
+.prev-letter-label.N { background: #f57f17; }
+.prev-letter-label.G { background: #c62828; }
+.prev-letter-label.O { background: #6a1b9a; }
+
+.prev-ball {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    font-weight: bold;
+    line-height: 1;
+    border: 2px solid rgba(255,255,255,0.15);
+    flex-shrink: 0;
+}
+
+.prev-ball .prev-num {
+    font-size: 1rem;
+}
+
+.prev-ball.B { background: radial-gradient(circle at 35% 35%, #4fc3f7, #0277bd); color: #fff; }
+.prev-ball.I { background: radial-gradient(circle at 35% 35%, #a5d6a7, #2e7d32); color: #fff; }
+.prev-ball.N { background: radial-gradient(circle at 35% 35%, #ffe082, #f57f17); color: #fff; }
+.prev-ball.G { background: radial-gradient(circle at 35% 35%, #ef9a9a, #c62828); color: #333; }
+.prev-ball.O { background: radial-gradient(circle at 35% 35%, #ce93d8, #6a1b9a); color: #fff; }
+
+@keyframes dropIn {
+    0%   { opacity: 0; transform: translateY(-60px) scale(1.4); }
+    60%  { transform: translateY(8px) scale(0.95); }
+    80%  { transform: translateY(-4px) scale(1.02); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.newest-ball {
+    animation: dropIn 0.55s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+    box-shadow: 0 0 14px rgba(255,255,255,0.35);
+}
+
+.prev-ball:not(.newest-ball) {
+    opacity: 0.65;
+    transition: opacity 0.3s;
+}
+.prev-ball:not(.newest-ball):hover {
+    opacity: 1;
+}
+
+/* ==============================
+BALL TRANSIT ANIMATION
+(current ball flies into its slot in the
+Previously Drawn row, fading as it travels)
+================================ */
+.ball-transit {
+    position: fixed;
+    z-index: 2000;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    line-height: 1;
+    pointer-events: none;
+    box-shadow: 0 0 14px rgba(255,255,255,0.35);
+    transition:
+        transform 0.55s cubic-bezier(0.65, 0, 0.35, 1),
+        opacity 0.55s ease-in,
+        font-size 0.55s cubic-bezier(0.65, 0, 0.35, 1);
+    will-change: transform, opacity, font-size;
+}
+
+#current-ball-wrap {
+    position: relative;
+    min-height: 180px;
+}
+
+/* ==============================
+NUMBER CYCLE REVEAL
+(rapid flicker through random numbers
+before settling on the actual drawn number)
+================================ */
+.bingo-ball.cycling {
+    animation: cyclePulse 0.18s ease-in-out infinite alternate;
+}
+
+@keyframes cyclePulse {
+    from { transform: scale(1); }
+    to   { transform: scale(1.06); }
 }

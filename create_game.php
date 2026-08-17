@@ -37,6 +37,8 @@ include 'partials/header.php';
 include 'partials/sidebar.php';
 ?>
 
+<link rel="stylesheet" href="css/create_game.css">
+
 <div class="col-md-10 p-4 d-flex justify-content-center">
     <div style="width:100%; max-width:600px;">
     <h3 class="mb-4">Create Game</h3>
@@ -115,33 +117,6 @@ include 'partials/sidebar.php';
     </div>
     </div>
 </div>
-
-<style>
-.bingo-table td,
-.bingo-table th {
-    width: 60px;
-    height: 60px;
-    text-align: center;
-    vertical-align: middle;
-    cursor: pointer;
-    font-weight: bold;
-    transition: 0.2s ease-in-out;
-}
-
-.pattern-cell:hover {
-    transform: scale(1.05);
-}
-
-.pattern-cell.active {
-    background-color: #198754 !important;
-    color: white;
-}
-
-.free {
-    background-color: #ffc107 !important;
-    color: black;
-}
-</style>
 
 <script src="js/game/create_game.js"></script>
 

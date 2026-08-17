@@ -40,7 +40,7 @@ $totalDrawn = count(json_decode($game['drawn_numbers'] ?? '[]', true));
 <head>
     <title>Game Winners</title>
     <link href="css/bootstrap.min.css" rel="stylesheet">
-    <link href="css/design.css" rel="stylesheet">
+    <link href="css/winner.css" rel="stylesheet">
     <script src="sweetalert/dist/sweetalert2.all.min.js"></script>
 
     <style>

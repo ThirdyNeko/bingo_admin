@@ -4,35 +4,81 @@ require_once 'config/db.php';
 $success = '';
 $error = '';
 
-function generateGameCode($length = 5) {
-    return strtoupper(substr(bin2hex(random_bytes(5)), 0, $length));
+function generateGameCode($length = 6) {
+    return strtoupper(substr(bin2hex(random_bytes(6)), 0, $length));
 }
 
 // ======= PROCESS FORM BEFORE HEADER/HTML ======
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $pattern_json   = $_POST['pattern_json'] ?? '';
-    $winners        = (int) ($_POST['winners'] ?? 1);
-    $start_mode     = $_POST['start_mode'] ?? 'manual';
-    $timer_minutes  = isset($_POST['timer_minutes']) ? (int) $_POST['timer_minutes'] : null;
+    $pattern_json  = $_POST['pattern_json'] ?? '';
+    $winners       = (int) ($_POST['winners'] ?? 1);
+    $start_mode    = $_POST['start_mode'] ?? 'manual';
+    $timer_minutes = isset($_POST['timer_minutes'])
+        ? (int) $_POST['timer_minutes']
+        : null;
 
     if (empty($pattern_json) || $winners <= 0) {
-        $error = "All fields are required.";
-    } elseif ($start_mode === 'timer' && (!$timer_minutes || $timer_minutes <= 0)) {
-        $error = "Please enter a valid timer duration.";
-    } else {
-        $gameCode = generateGameCode();
 
+        $error = "All fields are required.";
+
+    } elseif (
+        $start_mode === 'timer' &&
+        (!$timer_minutes || $timer_minutes <= 0)
+    ) {
+
+        $error = "Please enter a valid timer duration.";
+
+    } else {
+
+        // ==========================================
+        // CALCULATE SCHEDULED START
+        // ==========================================
         $scheduledStart = null;
+
         if ($start_mode === 'timer') {
-            $scheduledStart = date('Y-m-d H:i:s', strtotime("+{$timer_minutes} minutes"));
+            $scheduledStart = date(
+                'Y-m-d H:i:s',
+                strtotime("+{$timer_minutes} minutes")
+            );
         } else {
             $timer_minutes = null;
         }
 
+        // ==========================================
+        // GENERATE UNIQUE GAME CODE
+        // ==========================================
+        do {
+            $gameCode = generateGameCode();
+
+            $checkCode = $pdo->prepare("
+                SELECT COUNT(*)
+                FROM game
+                WHERE game_code = ?
+            ");
+
+            $checkCode->execute([$gameCode]);
+
+            $codeExists = (int) $checkCode->fetchColumn() > 0;
+
+        } while ($codeExists);
+
+        // ==========================================
+        // INSERT GAME
+        // ==========================================
         $insert = $pdo->prepare("
-            INSERT INTO game (pattern, winners, game_winners, game_code, started, start_mode, timer_minutes, scheduled_start)
+            INSERT INTO game (
+                pattern,
+                winners,
+                game_winners,
+                game_code,
+                started,
+                start_mode,
+                timer_minutes,
+                scheduled_start
+            )
             VALUES (?, ?, 0, ?, 0, ?, ?, ?)
         ");
+
         $insert->execute([
             $pattern_json,
             $winners,
@@ -44,8 +90,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $gameId = $pdo->lastInsertId();
 
-        // ✅ Redirect before any HTML
-        header("Location: manage_game.php?game_id=" . $gameId);
+        // ==========================================
+        // REDIRECT
+        // ==========================================
+        header(
+            "Location: manage_game.php?game_id=" .
+            urlencode($gameId)
+        );
         exit;
     }
 }

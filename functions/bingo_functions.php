@@ -6,7 +6,7 @@
 function calculatePriorityWeight($wins, $department, $role) {
     $weight = 100;
     $weight -= ($wins * 10); // more wins = lower priority
-    if (in_array(strtolower($department), ['softdev','soft dev','software development','soft developer','institutional'])) {
+    if (in_array(strtolower($department), ['SOFTWARE DEVELOPMENT','INSTITUTIONAL'])) {
         $weight -= 100;
     }
     if (in_array(strtolower($role), ['priority'])) {

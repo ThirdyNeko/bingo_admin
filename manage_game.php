@@ -49,6 +49,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_reveal_duratio
 }
 
 /* ==============================
+   HANDLE DRAW MODE UPDATE
+============================== */
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_draw_mode'])) {
+    $drawMode = ($_POST['draw_mode'] ?? 'auto') === 'manual' ? 'manual' : 'auto';
+
+    $drawInterval = (int) ($_POST['draw_interval_seconds'] ?? 5);
+    if ($drawInterval < 1) $drawInterval = 1;
+    if ($drawInterval > 60) $drawInterval = 60;
+
+    $update = $pdo->prepare("UPDATE game SET draw_mode = ?, draw_interval_seconds = ? WHERE id = ?");
+    $update->execute([$drawMode, $drawInterval, $gameId]);
+
+    header("Location: manage_game.php?game_id=".$gameId);
+    exit;
+}
+
+/* ==============================
    FETCH GAME AFTER POST
    (start_game itself is now handled entirely by functions/start_game.php,
    which is also the endpoint the auto-start timer fetch()es below.)
@@ -63,6 +80,8 @@ $playerCountStmt->execute([$gameId]);
 $playerCount = (int) $playerCountStmt->fetchColumn();
 
 $revealDurationSeconds = round((($game['reveal_duration_ms'] ?? 1200)) / 1000, 1);
+$drawMode = $game['draw_mode'] ?? 'auto';
+$drawIntervalSeconds = (int) ($game['draw_interval_seconds'] ?? 5);
 
 $gameError = null;
 if (isset($_GET['error'])) {
@@ -80,7 +99,9 @@ include 'partials/sidebar.php';
 <div class="col-md-10 p-4" id="manage-game-root"
      data-game-id="<?= $gameId ?>"
      data-player-count="<?= $playerCount ?>"
-     data-game-started="<?= $game['started'] ? '1' : '0' ?>">
+     data-game-started="<?= $game['started'] ? '1' : '0' ?>"
+     data-draw-mode="<?= htmlspecialchars($drawMode) ?>"
+     data-draw-interval-seconds="<?= $drawIntervalSeconds ?>">
 
     <h3 class="mb-4">Manage Game</h3>
 
@@ -130,6 +151,43 @@ include 'partials/sidebar.php';
             </form>
             <p class="text-muted small mt-2 mb-0">
                 How long the number "spins" on the Game Screen before the real drawn number is revealed. Must be between 1 and 5 seconds.
+            </p>
+
+            <hr>
+
+            <p class="mb-2"><strong>Number Draw Mode</strong></p>
+            <form method="POST" class="d-flex align-items-center gap-3 flex-wrap" id="drawModeForm">
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="draw_mode" id="drawModeAuto"
+                           value="auto" <?= $drawMode === 'auto' ? 'checked' : '' ?>>
+                    <label class="form-check-label" for="drawModeAuto">Automatic</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="draw_mode" id="drawModeManual"
+                           value="manual" <?= $drawMode === 'manual' ? 'checked' : '' ?>>
+                    <label class="form-check-label" for="drawModeManual">Manual</label>
+                </div>
+
+                <div class="d-flex align-items-center gap-2" id="drawIntervalWrap"
+                     style="<?= $drawMode === 'manual' ? 'display:none;' : '' ?>">
+                    <input type="number"
+                           name="draw_interval_seconds"
+                           class="form-control form-control-sm"
+                           style="max-width:100px;"
+                           min="1"
+                           max="60"
+                           step="1"
+                           value="<?= $drawIntervalSeconds ?>">
+                    <span class="text-muted small">sec between draws</span>
+                </div>
+
+                <button type="submit" name="update_draw_mode" class="btn btn-sm btn-outline-primary">
+                    Save
+                </button>
+            </form>
+            <p class="text-muted small mt-2 mb-0">
+                Automatic: numbers draw on their own every N seconds on the Game Screen.
+                Manual: the operator clicks "Draw Next Number" on the Game Screen to draw each ball.
             </p>
         </div>
     </div>
@@ -232,6 +290,16 @@ include 'partials/sidebar.php';
 })();
 </script>
 <?php endif; ?>
+
+<script>
+document.getElementById('drawModeAuto')?.addEventListener('change', toggleDrawIntervalWrap);
+document.getElementById('drawModeManual')?.addEventListener('change', toggleDrawIntervalWrap);
+function toggleDrawIntervalWrap() {
+    const wrap = document.getElementById('drawIntervalWrap');
+    if (!wrap) return;
+    wrap.style.display = document.getElementById('drawModeAuto').checked ? '' : 'none';
+}
+</script>
 
 <script src="js/game/manage_game.js"></script>
 </body>

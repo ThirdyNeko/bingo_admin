@@ -24,6 +24,21 @@ document.addEventListener("DOMContentLoaded", function () {
   let totalWinners = parseInt(root.dataset.totalWinners, 10);
 
   // ============================================================
+  // DRAW MODE (manual / auto)
+  // Tracked here so the polling loop below can detect if the admin
+  // changes these on the Manage Game page while this screen is open.
+  // ============================================================
+  let drawMode = root.dataset.drawMode === "manual" ? "manual" : "auto";
+  let drawIntervalSeconds = parseInt(root.dataset.drawIntervalSeconds, 10);
+  if (!Number.isFinite(drawIntervalSeconds) || drawIntervalSeconds < 1) {
+    drawIntervalSeconds = 5;
+  }
+  let currentRevealDurationMs = DRAW_REVEAL.durationMs;
+
+  let isDrawing = false;
+  let autoDrawTimer = null;
+
+  // ============================================================
   // LOBBY AUTO-START COUNTDOWN
   // Only relevant pre-start with start_mode === 'timer'. This is a
   // fallback trigger — functions/start_game.php already guards against
@@ -255,7 +270,7 @@ document.addEventListener("DOMContentLoaded", function () {
     tick();
   }
 
-  function renderDrawResult(data) {
+  function renderDrawResult(data, onFullyDone) {
     const number = data.number;
     const letter = letterFor(number);
 
@@ -290,6 +305,8 @@ document.addEventListener("DOMContentLoaded", function () {
         drawBtn.disabled = false;
         drawBtn.innerHTML = "Draw Number";
       }
+
+      if (typeof onFullyDone === "function") onFullyDone();
 
       if (data.finished) {
         Swal.fire({
@@ -326,40 +343,88 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   const drawBtn = document.getElementById("drawBtn");
-  if (drawBtn) {
-    drawBtn.addEventListener("click", function () {
+
+  // ============================================================
+  // SHARED DRAW TRIGGER
+  // Used by the manual button AND the auto-draw timer, so both
+  // paths get the same in-flight guard, error handling, and
+  // animation sequencing.
+  // ============================================================
+  function triggerDraw() {
+    if (isDrawing) return;
+    if (currentClaimed >= totalWinners) return;
+
+    isDrawing = true;
+
+    if (drawBtn) {
       drawBtn.disabled = true;
       drawBtn.innerHTML = "Drawing...";
+    }
 
-      fetch("functions/draw_number.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: "game_id=" + gameId,
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.error) {
+    fetch("functions/draw_number.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: "game_id=" + gameId,
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.error) {
+          isDrawing = false;
+          if (drawBtn) {
             drawBtn.disabled = false;
             drawBtn.innerHTML = "Draw Number";
-            Swal.fire("Notice", data.error, "info");
-            return;
           }
+          if (drawMode === "manual") {
+            Swal.fire("Notice", data.error, "info");
+          } else {
+            // Auto mode: no numbers left, or some other stop condition.
+            // Don't spam a modal every interval — just stop rescheduling.
+            console.warn("Auto-draw stopped:", data.error);
+          }
+          return;
+        }
 
-          // Stays disabled — renderDrawResult re-enables it once the
-          // fly-to-history + number-cycle animation fully finishes.
-          renderDrawResult(data);
-        })
-        .catch((err) => {
-          console.error("Draw error:", err);
+        renderDrawResult(data, function () {
+          isDrawing = false;
+          scheduleAutoDraw();
+        });
+      })
+      .catch((err) => {
+        console.error("Draw error:", err);
+        isDrawing = false;
+        if (drawBtn) {
           drawBtn.disabled = false;
           drawBtn.innerHTML = "Draw Number";
+        }
+        if (drawMode === "manual") {
           Swal.fire(
             "Error",
             "Something went wrong drawing the number.",
             "error",
           );
-        });
-    });
+        } else {
+          // Retry on the normal interval rather than hammering the endpoint.
+          scheduleAutoDraw();
+        }
+      });
+  }
+
+  function scheduleAutoDraw() {
+    clearTimeout(autoDrawTimer);
+    if (drawMode !== "auto") return;
+    if (!gameStarted) return;
+    if (currentClaimed >= totalWinners) return;
+
+    autoDrawTimer = setTimeout(triggerDraw, drawIntervalSeconds * 1000);
+  }
+
+  if (drawBtn) {
+    drawBtn.addEventListener("click", triggerDraw);
+  }
+
+  // Kick off the first auto-draw if the game is already running in auto mode.
+  if (gameStarted && drawMode === "auto") {
+    scheduleAutoDraw();
   }
 
   function checkScreenChanges() {
@@ -369,13 +434,30 @@ document.addEventListener("DOMContentLoaded", function () {
         let newCount = parseInt(data.count);
         let newStarted = parseInt(data.started);
         let newClaimed = parseInt(data.claimed);
+        let newDrawMode = data.draw_mode === "manual" ? "manual" : "auto";
+        let newDrawIntervalSeconds = parseInt(data.draw_interval_seconds);
+        let newRevealDurationMs = parseInt(data.reveal_duration_ms);
 
         if (!gameStarted && newCount !== currentCount) {
           location.reload();
+          return;
         }
 
         if (newStarted !== gameStarted) {
           location.reload();
+          return;
+        }
+
+        // Settings changed on the Manage Game page — reload to pick them up,
+        // but not while a draw animation is actively mid-flight.
+        const settingsChanged =
+          newDrawMode !== drawMode ||
+          newDrawIntervalSeconds !== drawIntervalSeconds ||
+          newRevealDurationMs !== currentRevealDurationMs;
+
+        if (settingsChanged && !isDrawing) {
+          location.reload();
+          return;
         }
 
         if (newClaimed !== currentClaimed) {

@@ -44,6 +44,9 @@ $registerUrl = "http://localhost/bingo/index.php?game_code=" . urlencode($game['
 $qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" . urlencode($registerUrl);
 
 $started = (int)$game['started'] === 1;
+
+$drawMode = $game['draw_mode'] ?? 'auto';
+$drawIntervalSeconds = (int) ($game['draw_interval_seconds'] ?? 5);
 ?>
 
 <!DOCTYPE html>
@@ -203,9 +206,15 @@ $started = (int)$game['started'] === 1;
                 </div>
 
                 <div id="drawBtnWrap" class="mt-4">
-                    <button type="button" id="drawBtn" class="btn btn-lg btn-success px-5">
-                        Draw Number
-                    </button>
+                    <?php if ($drawMode === 'manual'): ?>
+                        <button type="button" id="drawBtn" class="btn btn-lg btn-success px-5">
+                            Draw Number
+                        </button>
+                    <?php else: ?>
+                        <div class="text-muted" id="autoDrawIndicator">
+                            🔄 Auto-drawing every <?= $drawIntervalSeconds ?>s…
+                        </div>
+                    <?php endif; ?>
                 </div>
 
                 <?php
@@ -292,6 +301,8 @@ $started = (int)$game['started'] === 1;
      data-claimed-count="<?= $claimedCount ?>"
      data-total-winners="<?= $totalWinners ?>"
      data-reveal-duration="<?= (int) ($game['reveal_duration_ms'] ?? 1200) ?>"
+     data-draw-mode="<?= htmlspecialchars($drawMode) ?>"
+     data-draw-interval-seconds="<?= $drawIntervalSeconds ?>"
      data-start-mode="<?= htmlspecialchars($game['start_mode'] ?? 'manual') ?>"
      data-scheduled-start="<?= $game['scheduled_start'] ? date('c', strtotime($game['scheduled_start'])) : '' ?>"
      style="display:none;"></div>

@@ -69,75 +69,79 @@ try {
 
 
     /*
-     * Base WHERE
-     */
-    $where = "WHERE role != :admin";
-
-    $params = [
-        ':admin' => 'admin'
-    ];
-
-
-    /*
-     * Search
-     */
-    if ($search !== '') {
-
-        $where .= "
-            AND (
-                name LIKE :search
-                OR department LIKE :search
-                OR role LIKE :search
-            )
-        ";
-
-        $params[':search'] = '%' . $search . '%';
-    }
-
-
-    /*
-     * Total records
+     * ==========================================================
+     * TOTAL RECORDS
+     * ==========================================================
+     *
+     * Count all non-admin users.
      */
     $countStmt = $pdo->prepare("
-        SELECT COUNT(*)
+        SELECT COUNT(*) AS total
         FROM users
-        WHERE role != :admin
+        WHERE role <> ?
     ");
 
-    $countStmt->execute([
-        ':admin' => 'admin'
-    ]);
+    $countStmt->execute(['admin']);
 
     $recordsTotal = (int) $countStmt->fetchColumn();
 
 
     /*
-     * Filtered records
+     * ==========================================================
+     * FILTERED RECORDS
+     * ==========================================================
      */
-    $filteredStmt = $pdo->prepare("
-        SELECT COUNT(*)
+    $filteredSql = "
+        SELECT COUNT(*) AS total
         FROM users
-        $where
-    ");
+        WHERE role <> ?
+    ";
 
-    $filteredStmt->execute($params);
+    $filteredParams = ['admin'];
+
+
+    if ($search !== '') {
+
+        $filteredSql .= "
+            AND (
+                name LIKE ?
+                OR department LIKE ?
+                OR role LIKE ?
+            )
+        ";
+
+        $searchValue = '%' . $search . '%';
+
+        $filteredParams[] = $searchValue;
+        $filteredParams[] = $searchValue;
+        $filteredParams[] = $searchValue;
+    }
+
+
+    $filteredStmt = $pdo->prepare($filteredSql);
+
+    $filteredStmt->execute($filteredParams);
 
     $recordsFiltered = (int) $filteredStmt->fetchColumn();
 
 
     /*
-     * SQL Server 2012-compatible pagination
+     * ==========================================================
+     * DATA QUERY
+     * ==========================================================
+     *
+     * SQL Server 2012 compatible.
+     *
+     * Uses ROW_NUMBER() instead of OFFSET/FETCH.
      */
     $sql = "
         SELECT
-            id_number,
             name,
             department,
             role
         FROM
         (
             SELECT
-                id_number,
                 name,
                 department,
                 role,
@@ -148,52 +152,60 @@ try {
 
             FROM users
 
-            $where
+            WHERE role <> ?
+    ";
 
+    $dataParams = ['admin'];
+
+
+    /*
+     * Search condition
+     */
+    if ($search !== '') {
+
+        $sql .= "
+            AND (
+                name LIKE ?
+                OR department LIKE ?
+                OR role LIKE ?
+            )
+        ";
+
+        $searchValue = '%' . $search . '%';
+
+        $dataParams[] = $searchValue;
+        $dataParams[] = $searchValue;
+        $dataParams[] = $searchValue;
+    }
+
+
+    $sql .= "
         ) AS numbered_users
 
-        WHERE row_num BETWEEN :startRow AND :endRow
+        WHERE row_num BETWEEN ? AND ?
 
         ORDER BY row_num
     ";
 
 
+    $dataParams[] = $startRow;
+    $dataParams[] = $endRow;
+
+
     $stmt = $pdo->prepare($sql);
 
-
-    foreach ($params as $key => $value) {
-        $stmt->bindValue($key, $value);
-    }
-
-
-    $stmt->bindValue(
-        ':startRow',
-        $startRow,
-        PDO::PARAM_INT
-    );
-
-    $stmt->bindValue(
-        ':endRow',
-        $endRow,
-        PDO::PARAM_INT
-    );
-
-
-    $stmt->execute();
+    $stmt->execute($dataParams);
 
 
     /*
-     * DataTables data
+     * ==========================================================
+     * DATA TABLE
+     * ==========================================================
      */
     $data = [];
 
-    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
 
-        $idNumber = htmlspecialchars(
-            $row['id_number'] ?? '',
-            ENT_QUOTES,
-            'UTF-8'
-        );
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
 
         $name = htmlspecialchars(
             $row['name'] ?? '',
@@ -207,27 +219,29 @@ try {
             'UTF-8'
         );
 
+        $role = $row['role'] ?? '';
+
+
+        $roleEscaped = htmlspecialchars(
+            $role,
+            ENT_QUOTES,
+            'UTF-8'
+        );
+
 
         /*
          * Role dropdown
-         *
-         * ID is kept internally in data-user-id
-         * but is NOT displayed.
          */
         $roleSelect = '
             <select
                 class="form-select form-select-sm user-role"
                 data-name="' . $name . '"
                 data-department="' . $department . '"
-                data-original-role="' . htmlspecialchars(
-                    $row['role'] ?? '',
-                    ENT_QUOTES,
-                    'UTF-8'
-                ) . '"
+                data-original-role="' . $roleEscaped . '"
             >
 
                 <option value="player" ' .
-                    ($row['role'] === 'player'
+                    ($role === 'player'
                         ? 'selected'
                         : '') . '
                 >
@@ -235,7 +249,7 @@ try {
                 </option>
 
                 <option value="priority" ' .
-                    ($row['role'] === 'priority'
+                    ($role === 'priority'
                         ? 'selected'
                         : '') . '
                 >
@@ -243,7 +257,7 @@ try {
                 </option>
 
                 <option value="gamemaster" ' .
-                    ($row['role'] === 'gamemaster'
+                    ($role === 'gamemaster'
                         ? 'selected'
                         : '') . '
                 >
@@ -255,7 +269,7 @@ try {
 
 
         /*
-         * Only display:
+         * DataTables columns:
          *
          * Name
          * Department
@@ -269,12 +283,18 @@ try {
     }
 
 
+    /*
+     * ==========================================================
+     * RESPONSE
+     * ==========================================================
+     */
     echo json_encode([
         'draw' => $draw,
         'recordsTotal' => $recordsTotal,
         'recordsFiltered' => $recordsFiltered,
         'data' => $data
     ]);
+
 
 } catch (Throwable $e) {
 

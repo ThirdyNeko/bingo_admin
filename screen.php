@@ -71,6 +71,15 @@ $started = (int)$game['started'] === 1;
             <?= $playerCount ?>
         </div>
 
+        <?php if ($game['start_mode'] === 'timer' && $game['scheduled_start']): ?>
+            <div class="alert alert-info d-inline-block mb-4" id="lobby-countdown-wrap">
+                <h5 class="mb-1">⏱️ Game starts automatically at
+                    <?= date('h:i A', strtotime($game['scheduled_start'])) ?>
+                </h5>
+                <div class="fs-4 fw-bold" id="lobby-countdown">calculating…</div>
+            </div>
+        <?php endif; ?>
+
         <div class="card bg-dark text-white border-0 shadow-lg mx-auto" style="max-width:350px;">
             <div class="card-body text-center">
                 <h5 class="mb-3">Scan to Join</h5>
@@ -283,6 +292,8 @@ $started = (int)$game['started'] === 1;
      data-claimed-count="<?= $claimedCount ?>"
      data-total-winners="<?= $totalWinners ?>"
      data-reveal-duration="<?= (int) ($game['reveal_duration_ms'] ?? 1200) ?>"
+     data-start-mode="<?= htmlspecialchars($game['start_mode'] ?? 'manual') ?>"
+     data-scheduled-start="<?= $game['scheduled_start'] ? date('c', strtotime($game['scheduled_start'])) : '' ?>"
      style="display:none;"></div>
 
 <script src="sweetalert/dist/sweetalert2.all.min.js"></script>

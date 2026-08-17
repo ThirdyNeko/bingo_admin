@@ -23,6 +23,41 @@ document.addEventListener("DOMContentLoaded", function () {
   let currentClaimed = parseInt(root.dataset.claimedCount, 10);
   let totalWinners = parseInt(root.dataset.totalWinners, 10);
 
+  // ============================================================
+  // LOBBY AUTO-START COUNTDOWN
+  // Only relevant pre-start with start_mode === 'timer'. This is a
+  // fallback trigger — functions/start_game.php already guards against
+  // double-processing, so it's safe for this screen to also fire it
+  // in case no admin tab is open when the timer hits zero.
+  // ============================================================
+  const startMode = root.dataset.startMode;
+  const scheduledStartRaw = root.dataset.scheduledStart;
+
+  if (!gameStarted && startMode === "timer" && scheduledStartRaw) {
+    const scheduledStart = new Date(scheduledStartRaw).getTime();
+    const countdownEl = document.getElementById("lobby-countdown");
+
+    const countdownTick = setInterval(() => {
+      const diff = scheduledStart - Date.now();
+
+      if (diff <= 0) {
+        clearInterval(countdownTick);
+        if (countdownEl) countdownEl.textContent = "starting…";
+
+        fetch("functions/start_game.php", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: "game_id=" + gameId,
+        }).then(() => location.reload());
+        return;
+      }
+
+      const m = Math.floor(diff / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      if (countdownEl) countdownEl.textContent = `${m}m ${s}s`;
+    }, 1000);
+  }
+
   if (currentClaimed >= totalWinners) {
     Swal.fire({
       icon: "success",

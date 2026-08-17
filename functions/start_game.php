@@ -15,9 +15,22 @@ $stmt->execute([$gameId]);
 $game = $stmt->fetch();
 if (!$game) { echo "<p class='text-danger'>Game does not exist.</p>"; exit; }
 
+// 🚫 Don't re-run the whole flow if the game already started
+// (e.g. the manual button was clicked right as the timer fired).
+if ($game['started']) {
+    header("Location: ../manage_game.php?game_id=" . $gameId);
+    exit;
+}
+
 $playersStmt = $pdo->prepare("SELECT * FROM users WHERE current_game=?");
 $playersStmt->execute([$gameId]);
 $players = $playersStmt->fetchAll();
+
+// 🚫 Guard: never allow a game to start with no joined players.
+if (empty($players)) {
+    header("Location: ../manage_game.php?game_id=" . $gameId . "&error=no_players");
+    exit;
+}
 
 $letters = ['B','I','N','G','O'];
 $pattern = json_decode($game['pattern'], true);
@@ -42,6 +55,15 @@ foreach ($players as $player) {
     }
 }
 
+// 🚫 Guard: if for some reason no cards were generated, bail out cleanly.
+if (empty($cardsWithWeights)) {
+    header("Location: ../manage_game.php?game_id=" . $gameId . "&error=no_cards");
+    exit;
+}
+
+// Never try to pick more winners than there are cards available.
+$maxWinners = min($maxWinners, count($cardsWithWeights));
+
 // 2️⃣ Pick winner cards
 $winnerCardIds = [];
 for ($i = 0; $i < $maxWinners; $i++) {
@@ -52,7 +74,7 @@ for ($i = 0; $i < $maxWinners; $i++) {
 // 3️⃣ Assign shared number inside pattern
 if (!empty($winnerCardIds)) {
     do {
-        $sharedNumber = rand(1, 75); // pick a random number
+        $sharedNumber = rand(1, 75);
         $fits = true;
 
         foreach ($winnerCardIds as $cardId) {
@@ -70,7 +92,6 @@ if (!empty($winnerCardIds)) {
                         $validRange = ['B'=>range(1,15),'I'=>range(16,30),'N'=>range(31,45),'G'=>range(46,60),'O'=>range(61,75)];
                         if (!in_array($sharedNumber, $validRange[$letter])) continue;
 
-                        // ✅ Force integer
                         $cardData[$letter][$r] = (int) $sharedNumber;
                         $placed = true;
                         break 2;
@@ -83,7 +104,6 @@ if (!empty($winnerCardIds)) {
                 break;
             }
 
-            // ✅ Force integer in DB too
             $stmt = $pdo->prepare("UPDATE user_cards SET card_data=?, shared_number=? WHERE id=?");
             $stmt->execute([json_encode($cardData), (int) $sharedNumber, $cardId]);
         }
@@ -91,15 +111,11 @@ if (!empty($winnerCardIds)) {
 }
 
 // 4️⃣ Build winner queue
-
 $otherCards = array_values(array_diff($allCardIds, $winnerCardIds));
 
 $winnerQueue = [];
-
-/* Level 1 = all winners */
 $winnerQueue[] = $winnerCardIds;
 
-/* Remaining cards */
 $queueLevel = count($winnerCardIds) + 1;
 
 while (!empty($otherCards)) {
@@ -112,7 +128,6 @@ while (!empty($otherCards)) {
     $queueLevel++;
 }
 
-/* Insert into DB */
 foreach ($winnerQueue as $levelIndex => $cards) {
     $level = $levelIndex + 1;
 

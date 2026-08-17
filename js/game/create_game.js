@@ -28,3 +28,11 @@ document.getElementById("resetPattern").addEventListener("click", function () {
 
   hiddenInput.value = "";
 });
+
+// Start Mode toggle (manual vs timer)
+const timerWrap = document.getElementById("timerInputWrap");
+document.querySelectorAll('input[name="start_mode"]').forEach((radio) => {
+  radio.addEventListener("change", function () {
+    timerWrap.classList.toggle("d-none", this.value !== "timer");
+  });
+});

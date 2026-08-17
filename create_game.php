@@ -10,19 +10,37 @@ function generateGameCode($length = 5) {
 
 // ======= PROCESS FORM BEFORE HEADER/HTML ======
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $pattern_json = $_POST['pattern_json'] ?? '';
-    $winners = (int) ($_POST['winners'] ?? 1);
+    $pattern_json   = $_POST['pattern_json'] ?? '';
+    $winners        = (int) ($_POST['winners'] ?? 1);
+    $start_mode     = $_POST['start_mode'] ?? 'manual';
+    $timer_minutes  = isset($_POST['timer_minutes']) ? (int) $_POST['timer_minutes'] : null;
 
     if (empty($pattern_json) || $winners <= 0) {
         $error = "All fields are required.";
+    } elseif ($start_mode === 'timer' && (!$timer_minutes || $timer_minutes <= 0)) {
+        $error = "Please enter a valid timer duration.";
     } else {
         $gameCode = generateGameCode();
 
+        $scheduledStart = null;
+        if ($start_mode === 'timer') {
+            $scheduledStart = date('Y-m-d H:i:s', strtotime("+{$timer_minutes} minutes"));
+        } else {
+            $timer_minutes = null;
+        }
+
         $insert = $pdo->prepare("
-            INSERT INTO game (pattern, winners, game_winners, game_code)
-            VALUES (?, ?, 0, ?)
+            INSERT INTO game (pattern, winners, game_winners, game_code, started, start_mode, timer_minutes, scheduled_start)
+            VALUES (?, ?, 0, ?, 0, ?, ?, ?)
         ");
-        $insert->execute([$pattern_json, $winners, $gameCode]);
+        $insert->execute([
+            $pattern_json,
+            $winners,
+            $gameCode,
+            $start_mode,
+            $timer_minutes,
+            $scheduledStart
+        ]);
 
         $gameId = $pdo->lastInsertId();
 
@@ -66,6 +84,36 @@ include 'partials/sidebar.php';
                            min="1"
                            value="1"
                            required>
+                </div>
+
+                <!-- Start Mode -->
+                <div class="mb-4">
+                    <label class="form-label fw-bold d-block">Game Start</label>
+
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="start_mode"
+                               id="mode_manual" value="manual" checked>
+                        <label class="btn btn-outline-primary" for="mode_manual">
+                            🖐️ Manual
+                        </label>
+
+                        <input type="radio" class="btn-check" name="start_mode"
+                               id="mode_timer" value="timer">
+                        <label class="btn btn-outline-primary" for="mode_timer">
+                            ⏱️ Timer
+                        </label>
+                    </div>
+
+                    <div id="timerInputWrap" class="mt-3 d-none">
+                        <label class="form-label">Auto-start after (minutes)</label>
+                        <input type="number" name="timer_minutes"
+                               id="timer_minutes"
+                               class="form-control"
+                               min="1" value="5">
+                        <div class="form-text">
+                            Game will automatically start this many minutes after creation.
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Bingo Pattern Grid -->

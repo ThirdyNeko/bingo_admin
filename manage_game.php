@@ -12,59 +12,6 @@ if (!isset($_GET['game_id'])) {
 $gameId = (int) $_GET['game_id'];
 
 /* ==============================
-   HELPER FUNCTIONS
-============================== */
-function calculatePriorityWeight($wins, $department, $role) {
-    $weight = 100;
-    $weight -= ($wins * 10); // more wins = lower priority
-    if (in_array(strtolower($department), ['softdev','soft dev','software development','soft developer','institutional'])) {
-        $weight -= 100;
-    }
-    if (in_array(strtolower($role), ['priority'])) {
-        $weight += 50;
-    }
-    return max($weight, 10);
-}
-
-function weightedRandomPick(&$items) {
-    if (empty($items)) {
-        return null;
-    }
-    $totalWeight = array_sum(array_column($items, 'weight'));
-    if ($totalWeight <= 0) {
-        return null;
-    }
-    $rand = mt_rand(1, $totalWeight);
-    foreach ($items as $index => $item) {
-        $rand -= $item['weight'];
-        if ($rand <= 0) {
-            $picked = $item;
-            unset($items[$index]);
-            $items = array_values($items);
-            return $picked['card_id'];
-        }
-    }
-    return null;
-}
-
-function generateRandomBingoCard() {
-    $card = [];
-    $columns = [
-        'B'=>range(1,15),
-        'I'=>range(16,30),
-        'N'=>range(31,45),
-        'G'=>range(46,60),
-        'O'=>range(61,75)
-    ];
-    foreach ($columns as $letter => $range) {
-        shuffle($range);
-        $card[$letter] = array_slice($range, 0, 5);
-    }
-    $card['N'][2] = 'FREE';
-    return $card;
-}
-
-/* ==============================
    HANDLE PLAYER UPDATE
 ============================== */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_player'])) {
@@ -89,7 +36,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_player'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_reveal_duration'])) {
     $seconds = (float) ($_POST['reveal_duration'] ?? 1.2);
 
-    // Hard clamp to 1–5 seconds regardless of what the client sends.
     if ($seconds < 1) $seconds = 1;
     if ($seconds > 5) $seconds = 5;
 
@@ -103,178 +49,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_reveal_duratio
 }
 
 /* ==============================
-   START GAME HANDLER
-============================== */
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['start_game'])) {
-
-    // Fetch game & players
-    $stmt = $pdo->prepare("SELECT * FROM game WHERE id=?");
-    $stmt->execute([$gameId]);
-    $game = $stmt->fetch();
-    if (!$game) { echo "<p class='text-danger'>Game does not exist.</p>"; exit; }
-
-    $playersStmt = $pdo->prepare("SELECT * FROM users WHERE current_game=?");
-    $playersStmt->execute([$gameId]);
-    $players = $playersStmt->fetchAll();
-
-    // 🚫 Guard: never allow a game to start with no joined players.
-    // Passed back via query param instead of $_SESSION so this can't
-    // interfere with the app's existing session/auth handling.
-    if (empty($players)) {
-        header("Location: manage_game.php?game_id=".$gameId."&error=no_players");
-        exit;
-    }
-
-    $letters = ['B','I','N','G','O'];
-    $pattern = json_decode($game['pattern'],true);
-    $maxWinners = $game['winners'] ?? 2;
-
-    $cardsWithWeights = [];
-    $allCardIds = [];
-
-    // 1️⃣ Generate cards for players
-    foreach ($players as $player) {
-        $userId = $player['id'];
-        $cardCount = max(1,$player['card_count'] ?? 1);
-        for ($i=0;$i<$cardCount;$i++){
-            $randomCard = generateRandomBingoCard();
-            $stmt = $pdo->prepare("INSERT INTO user_cards (user_id, game_id, card_data) VALUES (?,?,?)");
-            $stmt->execute([$userId,$gameId,json_encode($randomCard)]);
-            $cardId = $pdo->lastInsertId();
-
-            $weight = calculatePriorityWeight((int)($player['wins'] ?? 0),$player['department'] ?? '', $player['role'] ?? '');
-            $cardsWithWeights[]=['card_id'=>$cardId,'weight'=>$weight];
-            $allCardIds[] = $cardId;
-        }
-    }
-
-    // 🚫 Guard: if for some reason no cards were generated, bail out cleanly
-    // instead of letting weightedRandomPick blow up on an empty array.
-    if (empty($cardsWithWeights)) {
-        header("Location: manage_game.php?game_id=".$gameId."&error=no_cards");
-        exit;
-    }
-
-    // Never try to pick more winners than there are cards available.
-    $maxWinners = min($maxWinners, count($cardsWithWeights));
-
-    // 2️⃣ Pick winner cards
-    $winnerCardIds = [];
-    for($i=0;$i<$maxWinners;$i++){
-        $picked = weightedRandomPick($cardsWithWeights);
-        if($picked) $winnerCardIds[]=$picked;
-    }
-
-    // 3️⃣ Assign shared number inside pattern
-    if (!empty($winnerCardIds)) {
-        do {
-            $sharedNumber = rand(1, 75); // pick a random number
-            $fits = true;
-
-            foreach ($winnerCardIds as $cardId) {
-                $stmt = $pdo->prepare("SELECT card_data FROM user_cards WHERE id=?");
-                $stmt->execute([$cardId]);
-                $cardData = json_decode($stmt->fetchColumn(), true);
-
-                $placed = false;
-                foreach ($pattern as $r => $cols) {
-                    foreach ($cols as $c => $val) {
-                        if ($val == 1) {
-                            $letter = $letters[$c];
-                            if ($letter === 'N' && $r === 2) continue;
-
-                            $validRange = ['B'=>range(1,15),'I'=>range(16,30),'N'=>range(31,45),'G'=>range(46,60),'O'=>range(61,75)];
-                            if (!in_array($sharedNumber, $validRange[$letter])) continue;
-
-                            // ✅ Force integer
-                            $cardData[$letter][$r] = (int)$sharedNumber;
-                            $placed = true;
-                            break 2;
-                        }
-                    }
-                }
-
-                if (!$placed) { 
-                    $fits = false; 
-                    break; 
-                }
-
-                // ✅ Force integer in DB too
-                $stmt = $pdo->prepare("UPDATE user_cards SET card_data=?, shared_number=? WHERE id=?");
-                $stmt->execute([json_encode($cardData), (int)$sharedNumber, $cardId]);
-            }
-        } while (!$fits);
-    }
-
-    // 4️⃣ Build winner queue
-
-    $otherCards = array_values(array_diff($allCardIds, $winnerCardIds));
-
-    $winnerQueue = [];
-
-    /* Level 1 = all winners */
-    $winnerQueue[] = $winnerCardIds;
-
-    /* Remaining cards */
-    $queueLevel = count($winnerCardIds) + 1;
-
-    while (!empty($otherCards)) {
-
-        $levelCards = array_splice($otherCards, 0, $queueLevel);
-
-        if (!empty($levelCards)) {
-            $winnerQueue[] = $levelCards;
-        }
-
-        $queueLevel++;
-    }
-
-
-    /* Insert into DB */
-
-    foreach ($winnerQueue as $levelIndex => $cards) {
-
-        $level = $levelIndex + 1;
-
-        foreach ($cards as $cardId) {
-
-            $stmt = $pdo->prepare("
-                INSERT INTO game_winner_queue (game_id, level, card_id)
-                VALUES (?, ?, ?)
-            ");
-
-            $stmt->execute([$gameId, $level, $cardId]);
-        }
-    }
-
-    // 5️⃣ Mark game as started
-    $stmt = $pdo->prepare("UPDATE game SET started=1 WHERE id=?");
-    $stmt->execute([$gameId]);
-
-    header("Location: manage_game.php?game_id=".$gameId);
-    exit;
-}
-
-/* ==============================
    FETCH GAME AFTER POST
+   (start_game itself is now handled entirely by functions/start_game.php,
+   which is also the endpoint the auto-start timer fetch()es below.)
 ============================== */
 $stmt = $pdo->prepare("SELECT * FROM game WHERE id=?");
 $stmt->execute([$gameId]);
 $game = $stmt->fetch();
 if(!$game){ echo "<p class='text-danger'>Game does not exist.</p>"; exit; }
 
-// Used only to know whether the Start Game button should be enabled/disabled
-// and for the initial players-count badge. The actual table rows are now
-// loaded by the server-side DataTable via functions/game_players_list.php.
 $playerCountStmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE current_game=?");
 $playerCountStmt->execute([$gameId]);
 $playerCount = (int) $playerCountStmt->fetchColumn();
 
-// Reveal duration is stored in ms; the UI edits it in seconds (1–5).
 $revealDurationSeconds = round((($game['reveal_duration_ms'] ?? 1200)) / 1000, 1);
 
-// Error message for the Start Game guard, passed via query param
-// (no session usage — avoids any interference with app auth/session).
 $gameError = null;
 if (isset($_GET['error'])) {
     $errorMessages = [
@@ -284,14 +73,14 @@ if (isset($_GET['error'])) {
     $gameError = $errorMessages[$_GET['error']] ?? null;
 }
 
-/* ==============================
-   INCLUDE HEADER & SIDEBAR AFTER POST LOGIC
-============================== */
 include 'partials/header.php';
 include 'partials/sidebar.php';
 ?>
 
-<div class="col-md-10 p-4" id="manage-game-root" data-game-id="<?= $gameId ?>" data-player-count="<?= $playerCount ?>" data-game-started="<?= $game['started'] ? '1' : '0' ?>">
+<div class="col-md-10 p-4" id="manage-game-root"
+     data-game-id="<?= $gameId ?>"
+     data-player-count="<?= $playerCount ?>"
+     data-game-started="<?= $game['started'] ? '1' : '0' ?>">
 
     <h3 class="mb-4">Manage Game</h3>
 
@@ -367,6 +156,15 @@ include 'partials/sidebar.php';
             </div>
 
             <?php if (!$game['started']): ?>
+
+                <?php if ($game['start_mode'] === 'timer' && $game['scheduled_start']): ?>
+                    <div class="mt-3 alert alert-info mb-2">
+                        Game starts automatically at
+                        <strong><?= date('h:i A', strtotime($game['scheduled_start'])) ?></strong>
+                        — <span id="countdown"></span>
+                    </div>
+                <?php endif; ?>
+
                 <?php if ($playerCount === 0): ?>
                     <div class="mt-3">
                         <button type="button" class="btn btn-lg btn-secondary w-100" disabled>
@@ -375,13 +173,15 @@ include 'partials/sidebar.php';
                     </div>
                 <?php else: ?>
                     <div class="mt-3">
-                        <form method="POST">
-                            <button type="submit" name="start_game" class="btn btn-lg btn-primary w-100">
-                                🚀 Start Game
+                        <form method="POST" action="functions/start_game.php">
+                            <input type="hidden" name="game_id" value="<?= $gameId ?>">
+                            <button type="submit" class="btn btn-lg btn-primary w-100">
+                                🚀 Start Game<?= $game['start_mode'] === 'timer' ? ' Now' : '' ?>
                             </button>
                         </form>
                     </div>
                 <?php endif; ?>
+
             <?php else: ?>
                 <div class="mt-3">
                     <span class="text-success fw-bold">Game Started ✅</span>
@@ -402,6 +202,36 @@ include 'partials/sidebar.php';
 <link rel="stylesheet" href="css/datatables.min.css">
 <script src="js/jquery-4.0.0.min.js"></script>
 <script src="js/datatables.min.js"></script>
+
+<?php if (!$game['started'] && $game['start_mode'] === 'timer' && $game['scheduled_start']): ?>
+<script>
+(function () {
+    const scheduledStart = new Date("<?= date('c', strtotime($game['scheduled_start'])) ?>").getTime();
+    const countdownEl = document.getElementById('countdown');
+    const gameId = <?= $gameId ?>;
+
+    const tick = setInterval(() => {
+        const diff = scheduledStart - Date.now();
+
+        if (diff <= 0) {
+            clearInterval(tick);
+            if (countdownEl) countdownEl.textContent = "starting…";
+
+            fetch('functions/start_game.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'game_id=' + encodeURIComponent(gameId)
+            }).then(() => location.reload());
+            return;
+        }
+
+        const m = Math.floor(diff / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
+        if (countdownEl) countdownEl.textContent = `${m}m ${s}s remaining`;
+    }, 1000);
+})();
+</script>
+<?php endif; ?>
 
 <script src="js/game/manage_game.js"></script>
 </body>

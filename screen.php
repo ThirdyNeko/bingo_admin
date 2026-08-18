@@ -100,26 +100,30 @@ if ($prize && $prize['picture'] !== null) {
             </div>
         <?php endif; ?>
 
-        <div class="card bg-dark text-white border-0 shadow-lg mx-auto" style="max-width:350px;">
-            <div class="card-body text-center">
-                <h5 class="mb-3">Scan to Join</h5>
-                <img src="<?= $qrUrl ?>" class="img-fluid">
-            </div>
-        </div>
+        <div class="d-flex justify-content-center gap-4 flex-wrap">
 
-        <?php if ($prize): ?>
-        <div class="card bg-dark text-white border-0 shadow-lg mx-auto mt-4" style="max-width:350px;">
-            <div class="card-body text-center">
-                <h5 class="mb-3">🏆 Prize</h5>
-                <?php if ($prizePictureData): ?>
-                    <img src="<?= $prizePictureData ?>" class="img-fluid rounded mb-3" style="max-height:250px;">
-                <?php endif; ?>
-                <div class="fs-4 fw-bold text-warning">
-                    <?= htmlspecialchars($prize['name']) ?>
+            <div class="card bg-dark text-white border-0 shadow-lg" style="max-width:350px;">
+                <div class="card-body text-center">
+                    <h5 class="mb-3">Scan to Join</h5>
+                    <img src="<?= $qrUrl ?>" class="img-fluid">
                 </div>
             </div>
+
+            <?php if ($prize): ?>
+            <div class="card bg-dark text-white border-0 shadow-lg" style="max-width:350px;">
+                <div class="card-body text-center">
+                    <h5 class="mb-3">🏆 Prize</h5>
+                    <?php if ($prizePictureData): ?>
+                        <img src="<?= $prizePictureData ?>" class="img-fluid rounded mb-3" style="max-height:250px;">
+                    <?php endif; ?>
+                    <div class="fs-4 fw-bold text-warning">
+                        <?= htmlspecialchars($prize['name']) ?>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
+
         </div>
-        <?php endif; ?>
 
     </div>
 
@@ -213,13 +217,13 @@ if ($prize && $prize['picture'] !== null) {
                 </div>
 
                 <?php if ($prize): ?>
-                <div class="mt-5 text-center w-100">
-                    <h3 class="text-info mb-3">🏆 Prize</h3>
-                    <div class="mx-auto bg-dark p-3 rounded shadow" style="max-width:250px;">
+                <div class="mt-4 text-center w-100">
+                    <h5 class="text-info mb-2">🏆 Prize</h5>
+                    <div class="mx-auto bg-dark p-2 rounded shadow" style="max-width:350px;">
                         <?php if ($prizePictureData): ?>
-                            <img src="<?= $prizePictureData ?>" class="img-fluid rounded mb-2">
+                            <img src="<?= $prizePictureData ?>" class="img-fluid rounded mb-1" style="max-height:350px; object-fit:cover;">
                         <?php endif; ?>
-                        <div class="fs-5 fw-bold text-warning">
+                        <div class="small fw-bold text-warning">
                             <?= htmlspecialchars($prize['name']) ?>
                         </div>
                     </div>

@@ -47,6 +47,23 @@ $started = (int)$game['started'] === 1;
 
 $drawMode = $game['draw_mode'] ?? 'auto';
 $drawIntervalSeconds = (int) ($game['draw_interval_seconds'] ?? 5);
+
+// ==========================================
+// GAME PRIZE (photo + name)
+// ==========================================
+$prizeStmt = $pdo->prepare("
+    SELECT TOP 1 name, picture
+    FROM game_prize
+    WHERE game_id = ?
+    ORDER BY id ASC
+");
+$prizeStmt->execute([$gameId]);
+$prize = $prizeStmt->fetch();
+
+$prizePictureData = null;
+if ($prize && $prize['picture'] !== null) {
+    $prizePictureData = 'data:image/jpeg;base64,' . base64_encode($prize['picture']);
+}
 ?>
 
 <!DOCTYPE html>
@@ -89,6 +106,20 @@ $drawIntervalSeconds = (int) ($game['draw_interval_seconds'] ?? 5);
                 <img src="<?= $qrUrl ?>" class="img-fluid">
             </div>
         </div>
+
+        <?php if ($prize): ?>
+        <div class="card bg-dark text-white border-0 shadow-lg mx-auto mt-4" style="max-width:350px;">
+            <div class="card-body text-center">
+                <h5 class="mb-3">🏆 Prize</h5>
+                <?php if ($prizePictureData): ?>
+                    <img src="<?= $prizePictureData ?>" class="img-fluid rounded mb-3" style="max-height:250px;">
+                <?php endif; ?>
+                <div class="fs-4 fw-bold text-warning">
+                    <?= htmlspecialchars($prize['name']) ?>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
 
     </div>
 
@@ -180,6 +211,20 @@ $drawIntervalSeconds = (int) ($game['draw_interval_seconds'] ?? 5);
 
                     </div>
                 </div>
+
+                <?php if ($prize): ?>
+                <div class="mt-5 text-center w-100">
+                    <h3 class="text-info mb-3">🏆 Prize</h3>
+                    <div class="mx-auto bg-dark p-3 rounded shadow" style="max-width:250px;">
+                        <?php if ($prizePictureData): ?>
+                            <img src="<?= $prizePictureData ?>" class="img-fluid rounded mb-2">
+                        <?php endif; ?>
+                        <div class="fs-5 fw-bold text-warning">
+                            <?= htmlspecialchars($prize['name']) ?>
+                        </div>
+                    </div>
+                </div>
+                <?php endif; ?>
 
             </div>
 

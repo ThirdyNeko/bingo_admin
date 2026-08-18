@@ -17,6 +17,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ? (int) $_POST['timer_minutes']
         : null;
 
+    $prize_name        = trim($_POST['prize_name'] ?? '');
+    $prize_description = trim($_POST['prize_description'] ?? '');
+
     if (empty($pattern_json) || $winners <= 0) {
 
         $error = "All fields are required.";
@@ -45,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // ==========================================
-        // GENERATE UNIQUE GAME CODE
+        // GENERATE UNIQUE GAME CODE + SESSION ID
         // ==========================================
         do {
             $gameCode = generateGameCode();
@@ -62,6 +65,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         } while ($codeExists);
 
+        // session_id is date-based, so all games created the same
+        // day automatically share the same session_id
+        $sessionId = date('Ymd');
+
         // ==========================================
         // INSERT GAME
         // ==========================================
@@ -71,24 +78,83 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 winners,
                 game_winners,
                 game_code,
+                session_id,
                 started,
                 start_mode,
                 timer_minutes,
                 scheduled_start
             )
-            VALUES (?, ?, 0, ?, 0, ?, ?, ?)
+            VALUES (?, ?, 0, ?, ?, 0, ?, ?, ?)
         ");
 
         $insert->execute([
             $pattern_json,
             $winners,
             $gameCode,
+            $sessionId,
             $start_mode,
             $timer_minutes,
             $scheduledStart
         ]);
 
         $gameId = $pdo->lastInsertId();
+
+        // ==========================================
+        // INSERT GAME PRIZE (optional)
+        // ==========================================
+        if ($prize_name !== '') {
+
+            $picture_binary = null;
+
+            if (
+                isset($_FILES['prize_picture']) &&
+                $_FILES['prize_picture']['error'] === UPLOAD_ERR_OK
+            ) {
+                $picture_binary = file_get_contents(
+                    $_FILES['prize_picture']['tmp_name']
+                );
+            }
+
+            $insertPrize = $pdo->prepare("
+                INSERT INTO game_prize (
+                    game_id,
+                    name,
+                    description,
+                    picture
+                )
+                VALUES (?, ?, ?, ?)
+            ");
+
+            $insertPrize->bindValue(1, $gameId);
+            $insertPrize->bindValue(2, $prize_name);
+            $insertPrize->bindValue(3, $prize_description !== '' ? $prize_description : null);
+
+            $pictureStream = null;
+
+            if ($picture_binary !== null) {
+                // pdo_sqlsrv needs a stream (not a raw string) to treat the
+                // param as binary instead of trying to convert it as UCS-2 text
+                $pictureStream = fopen('php://memory', 'r+');
+                fwrite($pictureStream, $picture_binary);
+                rewind($pictureStream);
+
+                $insertPrize->bindParam(
+                    4,
+                    $pictureStream,
+                    PDO::PARAM_LOB,
+                    0,
+                    PDO::SQLSRV_ENCODING_BINARY
+                );
+            } else {
+                $insertPrize->bindValue(4, null, PDO::PARAM_NULL);
+            }
+
+            $insertPrize->execute();
+
+            if ($pictureStream !== null) {
+                fclose($pictureStream);
+            }
+        }
 
         // ==========================================
         // REDIRECT
@@ -125,7 +191,7 @@ include 'partials/sidebar.php';
         </div>
         <div class="card-body">
 
-            <form method="POST">
+            <form method="POST" enctype="multipart/form-data">
 
                 <!-- Number of Winners -->
                 <div class="mb-4">
@@ -165,6 +231,24 @@ include 'partials/sidebar.php';
                             Game will automatically start this many minutes after creation.
                         </div>
                     </div>
+                </div>
+
+                <!-- Game Prize -->
+                <div class="mb-4">
+                    <label class="form-label fw-bold d-block">Game Prize (optional)</label>
+
+                    <input type="text" name="prize_name"
+                           class="form-control mb-2"
+                           placeholder="Prize Name">
+
+                    <textarea name="prize_description"
+                              class="form-control mb-2"
+                              rows="2"
+                              placeholder="Prize Description"></textarea>
+
+                    <input type="file" name="prize_picture"
+                           class="form-control"
+                           accept="image/*">
                 </div>
 
                 <!-- Bingo Pattern Grid -->

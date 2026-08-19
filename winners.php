@@ -33,6 +33,23 @@ $winnersStmt->execute([$gameId]);
 $winners = $winnersStmt->fetchAll(PDO::FETCH_ASSOC);
 
 $totalDrawn = count(json_decode($game['drawn_numbers'] ?? '[]', true));
+
+/* ==============================
+   GET GAME PRIZE (photo + name)
+============================== */
+$prizeStmt = $pdo->prepare("
+    SELECT TOP 1 name, picture
+    FROM game_prize
+    WHERE game_id = ?
+    ORDER BY id ASC
+");
+$prizeStmt->execute([$gameId]);
+$prize = $prizeStmt->fetch();
+
+$prizePictureData = null;
+if ($prize && $prize['picture'] !== null) {
+    $prizePictureData = 'data:image/jpeg;base64,' . base64_encode($prize['picture']);
+}
 ?>
 
 <!DOCTYPE html>
@@ -61,6 +78,22 @@ $totalDrawn = count(json_decode($game['drawn_numbers'] ?? '[]', true));
     <h5 class="mb-4">
         Total Numbers Drawn: <?= $totalDrawn ?>
     </h5>
+
+    <?php if ($prize): ?>
+        <div class="d-flex justify-content-center mb-5">
+            <div class="card bg-dark text-white border-0 shadow-lg" style="max-width:350px;">
+                <div class="card-body text-center">
+                    <h5 class="mb-3">🏆 Prize</h5>
+                    <?php if ($prizePictureData): ?>
+                        <img src="<?= $prizePictureData ?>" class="img-fluid rounded mb-3" style="max-height:250px;">
+                    <?php endif; ?>
+                    <div class="fs-4 fw-bold text-warning">
+                        <?= htmlspecialchars($prize['name']) ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
 
     <?php if (empty($winners)): ?>
         <div class="alert alert-warning">

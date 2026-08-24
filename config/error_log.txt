@@ -19,3 +19,5 @@
 [2026-03-13 10:10:07] Error [2]: Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\bingo_admin\partials\sidebar.php:26) in C:\xampp\htdocs\bingo_admin\settings.php on line 20
 [2026-03-13 10:10:12] Error [2]: Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\bingo_admin\partials\sidebar.php:26) in C:\xampp\htdocs\bingo_admin\settings.php on line 20
 [2026-03-13 10:10:15] Error [2]: Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\bingo_admin\partials\sidebar.php:26) in C:\xampp\htdocs\bingo_admin\settings.php on line 20
+[2026-08-24 09:04:04] Error [2]: require_once(C:\xampp\htdocs\bingo_admin/auth/check_session.php): Failed to open stream: No such file or directory in C:\xampp\htdocs\bingo_admin\winners_list.php on line 3
+[2026-08-24 09:04:49] Error [2]: require_once(C:\xampp\htdocs\bingo_admin/auth/check_session.php): Failed to open stream: No such file or directory in C:\xampp\htdocs\bingo_admin\winners_list.php on line 3

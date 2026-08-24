@@ -14,6 +14,10 @@
         Manage Games
     </a>
 
+    <a href="winners_list.php" class="<?= basename($_SERVER['PHP_SELF'])=='winners_list.php'?'active-link':'' ?>">
+        Winners
+    </a>
+
     <a href="settings.php" class="<?= basename($_SERVER['PHP_SELF'])=='settings.php'?'active-link':'' ?>">
         Settings
     </a>

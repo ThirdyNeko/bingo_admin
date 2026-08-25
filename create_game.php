@@ -20,6 +20,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $prize_name        = trim($_POST['prize_name'] ?? '');
     $prize_description = trim($_POST['prize_description'] ?? '');
 
+    // Enforce max lengths server-side as well (defense in depth)
+    if (mb_strlen($prize_name) > 50) {
+        $prize_name = mb_substr($prize_name, 0, 50);
+    }
+    if (mb_strlen($prize_description) > 100) {
+        $prize_description = mb_substr($prize_description, 0, 100);
+    }
+
     if (empty($pattern_json) || $winners <= 0) {
 
         $error = "All fields are required.";
@@ -30,6 +38,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     ) {
 
         $error = "Please enter a valid timer duration.";
+
+    } elseif (mb_strlen($prize_name) > 50) {
+
+        $error = "Prize name must be 50 characters or fewer.";
+
+    } elseif (mb_strlen($prize_description) > 100) {
+
+        $error = "Prize description must be 100 characters or fewer.";
 
     } else {
 
@@ -238,13 +254,23 @@ include 'partials/sidebar.php';
                     <label class="form-label fw-bold d-block">Game Prize (optional)</label>
 
                     <input type="text" name="prize_name"
-                           class="form-control mb-2"
+                           id="prize_name"
+                           class="form-control mb-1"
+                           maxlength="50"
                            placeholder="Prize Name">
+                    <div class="form-text text-end mb-2">
+                        <span id="prize_name_count">0</span>/50
+                    </div>
 
                     <textarea name="prize_description"
-                              class="form-control mb-2"
+                              id="prize_description"
+                              class="form-control mb-1"
                               rows="2"
+                              maxlength="100"
                               placeholder="Prize Description"></textarea>
+                    <div class="form-text text-end mb-2">
+                        <span id="prize_description_count">0</span>/100
+                    </div>
 
                     <input type="file" name="prize_picture"
                            class="form-control"
@@ -302,6 +328,27 @@ include 'partials/sidebar.php';
 </div>
 
 <script src="js/game/create_game.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    function bindCounter(inputId, countId, max) {
+        const input = document.getElementById(inputId);
+        const count = document.getElementById(countId);
+        if (!input || !count) return;
+
+        function update() {
+            count.textContent = input.value.length;
+            count.classList.toggle('text-danger', input.value.length >= max);
+        }
+
+        input.addEventListener('input', update);
+        update();
+    }
+
+    bindCounter('prize_name', 'prize_name_count', 50);
+    bindCounter('prize_description', 'prize_description_count', 100);
+});
+</script>
 
 </div>
 </body>

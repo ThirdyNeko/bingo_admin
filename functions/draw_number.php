@@ -90,6 +90,9 @@ $neutralPool = array_values(array_diff($allAvailableNumbers, $drawPool));
 $dangerPool = [];
 $blockedNumbers = [];
 
+// How many numbers remaining still counts as "in the running" for suspense.
+$dangerThreshold = 3;
+
 $cardsStmt = $pdo->prepare("
     SELECT id, card_data
     FROM user_cards
@@ -115,35 +118,64 @@ foreach ($cards as $card) {
         }
     }
 
-    if (count($missing) == 1) {
-
-        $lastNumber = $missing[0];
-        $isQueued = false;
-
-        foreach ($queuedWinners as $qw) {
-            if ($qw['card_id'] == $card['id']) {
-                $isQueued = true;
-                break;
-            }
+    $isQueued = false;
+    foreach ($queuedWinners as $qw) {
+        if ($qw['card_id'] == $card['id']) {
+            $isQueued = true;
+            break;
         }
+    }
 
-        if (!$isQueued) {
-            $blockedNumbers[] = $lastNumber;
+    if (count($missing) == 1 && !$isQueued) {
+        // Would complete a non-winner on the next draw — never allow this number.
+        $blockedNumbers[] = $missing[0];
+
+    } elseif (!$isQueued && count($missing) >= 2 && count($missing) <= $dangerThreshold) {
+        // Close but not close enough to win. Weight by closeness so the
+        // nearest non-winner cards are favored slightly over farther ones.
+        $weight = $dangerThreshold - count($missing) + 1;
+        for ($w = 0; $w < $weight; $w++) {
+            $dangerPool = array_merge($dangerPool, $missing);
         }
     }
 }
 
+$dangerPool = array_values(array_unique($dangerPool));
 $blockedNumbers = array_unique($blockedNumbers);
 
 $winnerNumbers = array_values(array_diff($winnerNumbers, $blockedNumbers));
 $neutralPool = array_values(array_diff($neutralPool, $blockedNumbers));
+$dangerPool = array_values(array_diff($dangerPool, $blockedNumbers));
 $allAvailableNumbers = array_values(array_diff($allAvailableNumbers, $blockedNumbers));
+
+/* STUCK-STREAK TRACKING
+   If at least one non-winner card is sitting blocked at 1-away, count
+   consecutive draws that's been true. Past the threshold, stop dragging
+   it out — bias hard toward finishing the actual winner instead of
+   continuing to hold everyone at "so close". */
+
+$stuckStreak = (int) ($game['stuck_streak'] ?? 0);
+$stuckStreakLimit = 8; // draws a block can persist before we speed up the real finish
+
+if (!empty($blockedNumbers)) {
+    $stuckStreak++;
+} else {
+    $stuckStreak = 0;
+}
+
+$forceWinnerFinish = $stuckStreak >= $stuckStreakLimit && !empty($winnerNumbers);
 
 /* DRAW PROBABILITY SYSTEM */
 
 $drawCount = (int)($game['draw_count'] ?? 0);
 $winnerChance = min(20 + ($drawCount * 3), 75);
 $dangerChance = 15;
+
+if ($forceWinnerFinish) {
+    // Stop stalling — push straight toward completing the real winner.
+    $winnerChance = 100;
+}
+
 $roll = rand(1,100);
 
 if (!empty($winnerNumbers) && $roll <= $winnerChance) {
@@ -152,7 +184,9 @@ if (!empty($winnerNumbers) && $roll <= $winnerChance) {
 
 } elseif ($roll <= ($winnerChance + $dangerChance)) {
 
-    if (!empty($allAvailableNumbers)) {
+    if (!empty($dangerPool)) {
+        $number = $dangerPool[array_rand($dangerPool)];
+    } elseif (!empty($allAvailableNumbers)) {
         $number = $allAvailableNumbers[array_rand($allAvailableNumbers)];
     } else {
         $number = $neutralPool[array_rand($neutralPool)];
@@ -183,7 +217,7 @@ foreach ($queuedWinners as $winner) {
 
         $remaining = array_diff($drawPool, $drawnNumbers, [$sharedNumber]);
 
-        if (empty($remaining)) {
+        if (empty($remaining) || $forceWinnerFinish) {
             $number = $sharedNumber;
             break;
         }
@@ -196,10 +230,11 @@ if (!in_array($number, $drawnNumbers)) {
 
 $pdo->prepare("
     UPDATE game
-    SET drawn_numbers = ?, draw_count = draw_count + 1
+    SET drawn_numbers = ?, draw_count = draw_count + 1, stuck_streak = ?
     WHERE id = ?
 ")->execute([
     json_encode($drawnNumbers),
+    $stuckStreak,
     $gameId
 ]);
 

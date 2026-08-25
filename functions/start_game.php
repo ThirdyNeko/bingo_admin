@@ -92,6 +92,13 @@ if (!empty($winnerCardIds)) {
                         $validRange = ['B'=>range(1,15),'I'=>range(16,30),'N'=>range(31,45),'G'=>range(46,60),'O'=>range(61,75)];
                         if (!in_array($sharedNumber, $validRange[$letter])) continue;
 
+                        // 🚫 Skip if this column already has the number elsewhere on the card
+                        $existingValues = $cardData[$letter];
+                        unset($existingValues[$r]); // ignore the cell we're about to overwrite
+                        if (in_array((int) $sharedNumber, $existingValues, true)) {
+                            continue;
+                        }
+
                         $cardData[$letter][$r] = (int) $sharedNumber;
                         $placed = true;
                         break 2;

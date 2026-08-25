@@ -90,8 +90,20 @@ $neutralPool = array_values(array_diff($allAvailableNumbers, $drawPool));
 $dangerPool = [];
 $blockedNumbers = [];
 
-// How many numbers remaining still counts as "in the running" for suspense.
-$dangerThreshold = 3;
+// Total number of cells in the pattern — used to scale thresholds so
+// small patterns (fast games) don't finish in a handful of draws.
+$patternCellCount = 0;
+foreach ($pattern as $cols) {
+    foreach ($cols as $val) {
+        if ($val == 1) $patternCellCount++;
+    }
+}
+$patternCellCount = max($patternCellCount, 1);
+
+// Non-winner cards participate in the danger pool from the very start
+// of the pattern (not just the last couple of cells) so they visibly
+// progress throughout the game instead of staying flat until the end.
+$dangerThreshold = $patternCellCount - 1; // everything except "would complete"
 
 $cardsStmt = $pdo->prepare("
     SELECT id, card_data
@@ -131,8 +143,9 @@ foreach ($cards as $card) {
         $blockedNumbers[] = $missing[0];
 
     } elseif (!$isQueued && count($missing) >= 2 && count($missing) <= $dangerThreshold) {
-        // Close but not close enough to win. Weight by closeness so the
-        // nearest non-winner cards are favored slightly over farther ones.
+        // Weight by closeness: cards nearer completion get more copies in
+        // the pool, so they're favored, but every non-winner still gets
+        // *some* representation from early in the game.
         $weight = $dangerThreshold - count($missing) + 1;
         for ($w = 0; $w < $weight; $w++) {
             $dangerPool = array_merge($dangerPool, $missing);
@@ -168,8 +181,12 @@ $forceWinnerFinish = $stuckStreak >= $stuckStreakLimit && !empty($winnerNumbers)
 /* DRAW PROBABILITY SYSTEM */
 
 $drawCount = (int)($game['draw_count'] ?? 0);
-$winnerChance = min(20 + ($drawCount * 3), 75);
-$dangerChance = 15;
+
+// Scale the ramp to pattern size: a 4-cell pattern needs a much slower
+// climb than an 8+ cell one, or it finishes in a handful of draws.
+$rampRate = max(1, (int) round(6 / $patternCellCount));
+$winnerChance = min(10 + ($drawCount * $rampRate), 75);
+$dangerChance = 30; // raised so the "close but no" pool gets real airtime
 
 if ($forceWinnerFinish) {
     // Stop stalling — push straight toward completing the real winner.

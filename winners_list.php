@@ -5,10 +5,14 @@ require_once 'config/db.php';
 $stmt = $pdo->query("
     SELECT
         session_id,
-        COUNT(*)     AS rounds,
-        SUM(winners)  AS total_winners
+        COUNT(*) AS rounds,
+        SUM(winners) AS total_winners
     FROM game
     WHERE session_id IS NOT NULL AND session_id <> ''
+      AND game_winners IS NOT NULL
+      AND game_winners <> ''
+      AND game_winners <> '0'
+      AND game_winners <> '[]'
     GROUP BY session_id
     ORDER BY session_id DESC
 ");

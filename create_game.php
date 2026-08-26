@@ -20,6 +20,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $prize_name        = trim($_POST['prize_name'] ?? '');
     $prize_description = trim($_POST['prize_description'] ?? '');
 
+    // ==========================================
+    // CARD CHANGE WINDOW (how long players may
+    // still swap their bingo card after creation)
+    // ==========================================
+    $card_change_enabled = isset($_POST['enable_card_change_limit'])
+        && $_POST['enable_card_change_limit'] === '1';
+
+    $card_change_minutes = $card_change_enabled
+        ? (int) ($_POST['card_change_minutes'] ?? 0)
+        : null;
+
     // Enforce max lengths server-side as well (defense in depth)
     if (mb_strlen($prize_name) > 50) {
         $prize_name = mb_substr($prize_name, 0, 50);
@@ -38,6 +49,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     ) {
 
         $error = "Please enter a valid timer duration.";
+
+    } elseif (
+        $card_change_enabled &&
+        (!$card_change_minutes || $card_change_minutes <= 0)
+    ) {
+
+        $error = "Please enter a valid card change window in minutes.";
 
     } elseif (mb_strlen($prize_name) > 50) {
 
@@ -61,6 +79,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             );
         } else {
             $timer_minutes = null;
+        }
+
+        // ==========================================
+        // CARD CHANGE WINDOW
+        // ==========================================
+        // Only the duration is known at creation time. The window
+        // starts when the game actually starts (started = 1), which
+        // for manual-start games isn't known yet — so card_change_deadline
+        // is NOT set here. It must be calculated and written wherever
+        // the "start game" action flips started to 1.
+        if (!$card_change_enabled) {
+            $card_change_minutes = null;
         }
 
         // ==========================================
@@ -98,9 +128,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 started,
                 start_mode,
                 timer_minutes,
-                scheduled_start
+                scheduled_start,
+                card_change_minutes
             )
-            VALUES (?, ?, 0, ?, ?, 0, ?, ?, ?)
+            VALUES (?, ?, 0, ?, ?, 0, ?, ?, ?, ?)
         ");
 
         $insert->execute([
@@ -110,7 +141,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $sessionId,
             $start_mode,
             $timer_minutes,
-            $scheduledStart
+            $scheduledStart,
+            $card_change_minutes
         ]);
 
         $gameId = $pdo->lastInsertId();
@@ -249,6 +281,32 @@ include 'partials/sidebar.php';
                     </div>
                 </div>
 
+                <!-- Card Change Window -->
+                <div class="mb-4">
+                    <label class="form-label fw-bold d-block">Card Change Window</label>
+
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" role="switch"
+                               id="enable_card_change_limit" name="enable_card_change_limit" value="1">
+                        <label class="form-check-label" for="enable_card_change_limit">
+                            Limit how long players can change their cards
+                        </label>
+                    </div>
+
+                    <div id="cardChangeInputWrap" class="d-none">
+                        <label class="form-label">Allow card changes for (minutes)</label>
+                        <input type="number" name="card_change_minutes"
+                               id="card_change_minutes"
+                               class="form-control"
+                               min="1" value="10">
+                        <div class="form-text">
+                            Players won't be able to change their bingo card after this many
+                            minutes from when the game starts (not from creation). Leave the
+                            switch off to allow changes at any time.
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Game Prize -->
                 <div class="mb-4">
                     <label class="form-label fw-bold d-block">Game Prize (optional)</label>
@@ -347,6 +405,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
     bindCounter('prize_name', 'prize_name_count', 50);
     bindCounter('prize_description', 'prize_description_count', 100);
+
+    // Toggle the card change minutes input based on the switch
+    const cardChangeSwitch = document.getElementById('enable_card_change_limit');
+    const cardChangeWrap = document.getElementById('cardChangeInputWrap');
+
+    if (cardChangeSwitch && cardChangeWrap) {
+        cardChangeSwitch.addEventListener('change', function () {
+            cardChangeWrap.classList.toggle('d-none', !cardChangeSwitch.checked);
+        });
+    }
 });
 </script>
 

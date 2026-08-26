@@ -24,6 +24,41 @@ document.addEventListener("DOMContentLoaded", function () {
   let totalWinners = parseInt(root.dataset.totalWinners, 10);
 
   // ============================================================
+  // CARD CHANGE WINDOW
+  // Game may be "started" but still inside the pre-draw grace period
+  // where players can swap cards — no draw (manual or auto) is allowed
+  // until this closes. screen.php doesn't even render #drawBtn during
+  // this phase, but the auto-draw kickoff below still needs its own
+  // guard since it doesn't depend on the button existing.
+  // ============================================================
+  let inCardChangeWindow = parseInt(root.dataset.inCardChangeWindow, 10) === 1;
+  const cardChangeDeadlineRaw = root.dataset.cardChangeDeadline;
+
+  if (inCardChangeWindow && cardChangeDeadlineRaw) {
+    const cardChangeDeadline = new Date(cardChangeDeadlineRaw).getTime();
+    const countdownEl = document.getElementById("card-change-countdown");
+
+    const cardChangeTick = setInterval(() => {
+      const diff = cardChangeDeadline - Date.now();
+
+      if (diff <= 0) {
+        clearInterval(cardChangeTick);
+        if (countdownEl) countdownEl.textContent = "starting…";
+        // The deadline has already been persisted server-side by
+        // start_game.php — just reload so screen.php re-renders past
+        // the card-change branch and this script's normal auto-draw
+        // kickoff takes over.
+        location.reload();
+        return;
+      }
+
+      const m = Math.floor(diff / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      if (countdownEl) countdownEl.textContent = `${m}m ${s}s`;
+    }, 1000);
+  }
+
+  // ============================================================
   // DRAW MODE (manual / auto)
   // Tracked here so the polling loop below can detect if the admin
   // changes these on the Manage Game page while this screen is open.
@@ -352,6 +387,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // ============================================================
   function triggerDraw() {
     if (isDrawing) return;
+    if (inCardChangeWindow) return; // belt-and-suspenders; scheduleAutoDraw already guards this
     if (currentClaimed >= totalWinners) return;
 
     isDrawing = true;
@@ -377,8 +413,9 @@ document.addEventListener("DOMContentLoaded", function () {
           if (drawMode === "manual") {
             Swal.fire("Notice", data.error, "info");
           } else {
-            // Auto mode: no numbers left, or some other stop condition.
-            // Don't spam a modal every interval — just stop rescheduling.
+            // Auto mode: no numbers left, still in card-change window,
+            // or some other stop condition. Don't spam a modal every
+            // interval — just stop rescheduling.
             console.warn("Auto-draw stopped:", data.error);
           }
           return;
@@ -413,6 +450,7 @@ document.addEventListener("DOMContentLoaded", function () {
     clearTimeout(autoDrawTimer);
     if (drawMode !== "auto") return;
     if (!gameStarted) return;
+    if (inCardChangeWindow) return; // don't start drawing while cards can still change
     if (currentClaimed >= totalWinners) return;
 
     autoDrawTimer = setTimeout(triggerDraw, drawIntervalSeconds * 1000);
@@ -422,8 +460,9 @@ document.addEventListener("DOMContentLoaded", function () {
     drawBtn.addEventListener("click", triggerDraw);
   }
 
-  // Kick off the first auto-draw if the game is already running in auto mode.
-  if (gameStarted && drawMode === "auto") {
+  // Kick off the first auto-draw if the game is already running in auto
+  // mode and isn't still waiting out its card-change window.
+  if (gameStarted && drawMode === "auto" && !inCardChangeWindow) {
     scheduleAutoDraw();
   }
 

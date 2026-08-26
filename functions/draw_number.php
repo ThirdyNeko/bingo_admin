@@ -20,6 +20,23 @@ if (!$game) {
     exit;
 }
 
+// 🚫 Don't draw while the game is still in its card-change window —
+// players are allowed to be swapping cards right now. Mirrors the
+// check in screen.php and change_card.php.
+$cardChangeDeadline = $game['card_change_deadline'] ?? null;
+$inCardChangeWindow = (int) $game['started'] === 1
+    && $cardChangeDeadline
+    && strtotime($cardChangeDeadline) > time();
+
+if ($inCardChangeWindow) {
+    http_response_code(409);
+    echo json_encode([
+        'error' => 'Cannot draw yet — card change window is still open.',
+        'cardChangeDeadline' => date('c', strtotime($cardChangeDeadline)),
+    ]);
+    exit;
+}
+
 $totalWinners = (int) $game['winners'];
 
 $pattern = json_decode($game['pattern'], true);
@@ -182,11 +199,24 @@ $forceWinnerFinish = $stuckStreak >= $stuckStreakLimit && !empty($winnerNumbers)
 
 $drawCount = (int)($game['draw_count'] ?? 0);
 
-// Scale the ramp to pattern size: a 4-cell pattern needs a much slower
-// climb than an 8+ cell one, or it finishes in a handful of draws.
-$rampRate = max(1, (int) round(6 / $patternCellCount));
-$winnerChance = min(10 + ($drawCount * $rampRate), 75);
-$dangerChance = 30; // raised so the "close but no" pool gets real airtime
+$baseChance = 10;
+$maxChance  = 75;
+
+// Aim for the winner-chance ramp to hit $maxChance after roughly
+// (patternCellCount * $drawsPerCell) draws — bigger patterns take
+// longer to realistically fill, so they get a longer ramp; small
+// patterns ramp fast so the game doesn't drag.
+$drawsPerCell     = 5;
+$targetRampDraws  = max(1, $patternCellCount * $drawsPerCell);
+$rampRate         = ($maxChance - $baseChance) / $targetRampDraws;
+
+$winnerChance = min($baseChance + ($drawCount * $rampRate), $maxChance);
+
+// Danger pool airtime scales inversely with pattern size: small
+// patterns produce a tiny danger pool on their own, so they need a
+// bigger slice of the roll to stay convincing. Larger patterns
+// generate their own danger pool naturally, so they need less help.
+$dangerChance = (int) max(15, min(40, round(150 / $patternCellCount)));
 
 if ($forceWinnerFinish) {
     // Stop stalling — push straight toward completing the real winner.

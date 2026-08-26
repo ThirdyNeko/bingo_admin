@@ -45,6 +45,14 @@ $qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" . urle
 
 $started = (int)$game['started'] === 1;
 
+// A game that has started may still be in its card-change window —
+// players can swap cards until card_change_deadline passes, and only
+// then does the normal draw-number screen take over.
+$cardChangeDeadline = $game['card_change_deadline'] ?? null;
+$inCardChangeWindow = $started
+    && $cardChangeDeadline
+    && strtotime($cardChangeDeadline) > time();
+
 $drawMode = $game['draw_mode'] ?? 'auto';
 $drawIntervalSeconds = (int) ($game['draw_interval_seconds'] ?? 5);
 
@@ -234,107 +242,139 @@ if ($prize && $prize['picture'] !== null) {
 
             <div class="col-lg-9 text-center">
 
-                <h1 class="display-2 text-success mb-4">
-                    🎮 Game Started!
-                </h1>
+                <?php if ($inCardChangeWindow): ?>
 
-                <p class="lead">
-                    Live game display will go here.
-                </p>
+                    <!-- ==========================================
+                         CARD CHANGE WINDOW
+                         Game has started, but the pre-draw grace
+                         period during which players may still swap
+                         their bingo card hasn't ended yet.
+                    =========================================== -->
 
-                <h4 class="mt-4" id="winners-header">
-                    Winners: <?= $claimedCount ?> / <?= $totalWinners ?>
-                </h4>
+                    <h1 class="display-3 mb-4">🃏 Get Your Cards Ready!</h1>
 
-                <div id="winners-list" class="mt-3">
-                    <?php foreach ($winnerNames as $index => $name): ?>
-                        <div class="fs-4 text-warning">
-                            #<?= $index + 1 ?> — <?= htmlspecialchars($name) ?>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
+                    <p class="lead mb-4">
+                        Players can still change their bingo card. Number drawing
+                        begins once the timer below runs out.
+                    </p>
 
-                <div id="drawBtnWrap" class="mt-4">
-                    <?php if ($drawMode === 'manual'): ?>
-                        <button type="button" id="drawBtn" class="btn btn-lg btn-success px-5">
-                            Draw Number
-                        </button>
-                    <?php else: ?>
-                        <div class="text-muted" id="autoDrawIndicator">
-                            🔄 Auto-drawing every <?= $drawIntervalSeconds ?>s…
-                        </div>
-                    <?php endif; ?>
-                </div>
-
-                <?php
-                $drawnNumbers = array_map('intval', json_decode($game['drawn_numbers'] ?? '[]', true));
-                $lastNumber = (int)end($drawnNumbers);
-
-                if ($lastNumber):
-
-                    if ($lastNumber >= 1 && $lastNumber <= 15) {
-                        $letter = 'B';
-                    } elseif ($lastNumber <= 30) {
-                        $letter = 'I';
-                    } elseif ($lastNumber <= 45) {
-                        $letter = 'N';
-                    } elseif ($lastNumber <= 60) {
-                        $letter = 'G';
-                    } else {
-                        $letter = 'O';
-                    }
-                ?>
-                    <div class="my-4 text-center" id="current-ball-wrap">
-                        <div class="bingo-ball <?= $letter ?>">
-                            <div class="outer-letter">
-                                <?= $letter ?>
-                            </div>
-                            <div class="inner-number">
-                                <?= $lastNumber ?>
-                            </div>
-                        </div>
-                        <p class="lead mt-3">Last number drawn</p>
+                    <div class="alert alert-info d-inline-block mb-4" id="card-change-countdown-wrap">
+                        <h5 class="mb-1">⏱️ Drawing starts at
+                            <?= date('h:i A', strtotime($cardChangeDeadline)) ?>
+                        </h5>
+                        <div class="fs-4 fw-bold" id="card-change-countdown">calculating…</div>
                     </div>
+
+                    <h4 class="mt-3">
+                        👥 Players Joined:
+                        <span class="text-success"><?= $playerCount ?></span>
+                    </h4>
+
                 <?php else: ?>
-                    <div class="my-4 text-center" id="current-ball-wrap"></div>
-                <?php endif; ?>
 
-                <?php
-                $previousNumbers = array_slice($drawnNumbers, 0, -1);
-                $mostRecentPrev  = !empty($previousNumbers) ? end($previousNumbers) : null;
+                    <h1 class="display-2 text-success mb-4">
+                        🎮 Game Started!
+                    </h1>
 
-                $groupedPrev = ['B' => [], 'I' => [], 'N' => [], 'G' => [], 'O' => []];
-                foreach ($previousNumbers as $pn) {
-                    if ($pn >= 1 && $pn <= 15)      $groupedPrev['B'][] = $pn;
-                    elseif ($pn <= 30)              $groupedPrev['I'][] = $pn;
-                    elseif ($pn <= 45)              $groupedPrev['N'][] = $pn;
-                    elseif ($pn <= 60)              $groupedPrev['G'][] = $pn;
-                    else                             $groupedPrev['O'][] = $pn;
-                }
-                foreach ($groupedPrev as &$nums) {
-                    sort($nums);
-                }
-                unset($nums);
-                ?>
-                <div id="prev-numbers-section" class="mt-2 px-3">
-                    <?php if (!empty($previousNumbers)): ?>
-                    <p class="text-muted small mb-2 text-center">Previously Drawn</p>
-                    <div id="prev-numbers-track" class="d-flex flex-column gap-2">
-                        <?php foreach ($groupedPrev as $letter => $nums): ?>
-                            <?php if (!empty($nums)): ?>
-                                <div class="prev-letter-row d-flex align-items-center gap-2 flex-wrap">
-                                    <div class="prev-letter-label <?= $letter ?>"><?= $letter ?></div>
-                                    <?php foreach ($nums as $pn): ?>
-                                        <div class="prev-ball <?= $letter ?><?= $pn === $mostRecentPrev ? ' newest-ball' : '' ?>">
-                                            <span class="prev-num"><?= $pn ?></span>
-                                        </div>
-                                    <?php endforeach; ?>
-                                </div>
-                            <?php endif; ?>
+                    <p class="lead">
+                        Live game display will go here.
+                    </p>
+
+                    <h4 class="mt-4" id="winners-header">
+                        Winners: <?= $claimedCount ?> / <?= $totalWinners ?>
+                    </h4>
+
+                    <div id="winners-list" class="mt-3">
+                        <?php foreach ($winnerNames as $index => $name): ?>
+                            <div class="fs-4 text-warning">
+                                #<?= $index + 1 ?> — <?= htmlspecialchars($name) ?>
+                            </div>
                         <?php endforeach; ?>
                     </div>
+
+                    <div id="drawBtnWrap" class="mt-4">
+                        <?php if ($drawMode === 'manual'): ?>
+                            <button type="button" id="drawBtn" class="btn btn-lg btn-success px-5">
+                                Draw Number
+                            </button>
+                        <?php else: ?>
+                            <div class="text-muted" id="autoDrawIndicator">
+                                🔄 Auto-drawing every <?= $drawIntervalSeconds ?>s…
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
+                    <?php
+                    $drawnNumbers = array_map('intval', json_decode($game['drawn_numbers'] ?? '[]', true));
+                    $lastNumber = (int)end($drawnNumbers);
+
+                    if ($lastNumber):
+
+                        if ($lastNumber >= 1 && $lastNumber <= 15) {
+                            $letter = 'B';
+                        } elseif ($lastNumber <= 30) {
+                            $letter = 'I';
+                        } elseif ($lastNumber <= 45) {
+                            $letter = 'N';
+                        } elseif ($lastNumber <= 60) {
+                            $letter = 'G';
+                        } else {
+                            $letter = 'O';
+                        }
+                    ?>
+                        <div class="my-4 text-center" id="current-ball-wrap">
+                            <div class="bingo-ball <?= $letter ?>">
+                                <div class="outer-letter">
+                                    <?= $letter ?>
+                                </div>
+                                <div class="inner-number">
+                                    <?= $lastNumber ?>
+                                </div>
+                            </div>
+                            <p class="lead mt-3">Last number drawn</p>
+                        </div>
+                    <?php else: ?>
+                        <div class="my-4 text-center" id="current-ball-wrap"></div>
                     <?php endif; ?>
-                </div>
+
+                    <?php
+                    $previousNumbers = array_slice($drawnNumbers, 0, -1);
+                    $mostRecentPrev  = !empty($previousNumbers) ? end($previousNumbers) : null;
+
+                    $groupedPrev = ['B' => [], 'I' => [], 'N' => [], 'G' => [], 'O' => []];
+                    foreach ($previousNumbers as $pn) {
+                        if ($pn >= 1 && $pn <= 15)      $groupedPrev['B'][] = $pn;
+                        elseif ($pn <= 30)              $groupedPrev['I'][] = $pn;
+                        elseif ($pn <= 45)              $groupedPrev['N'][] = $pn;
+                        elseif ($pn <= 60)              $groupedPrev['G'][] = $pn;
+                        else                             $groupedPrev['O'][] = $pn;
+                    }
+                    foreach ($groupedPrev as &$nums) {
+                        sort($nums);
+                    }
+                    unset($nums);
+                    ?>
+                    <div id="prev-numbers-section" class="mt-2 px-3">
+                        <?php if (!empty($previousNumbers)): ?>
+                        <p class="text-muted small mb-2 text-center">Previously Drawn</p>
+                        <div id="prev-numbers-track" class="d-flex flex-column gap-2">
+                            <?php foreach ($groupedPrev as $letter => $nums): ?>
+                                <?php if (!empty($nums)): ?>
+                                    <div class="prev-letter-row d-flex align-items-center gap-2 flex-wrap">
+                                        <div class="prev-letter-label <?= $letter ?>"><?= $letter ?></div>
+                                        <?php foreach ($nums as $pn): ?>
+                                            <div class="prev-ball <?= $letter ?><?= $pn === $mostRecentPrev ? ' newest-ball' : '' ?>">
+                                                <span class="prev-num"><?= $pn ?></span>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php endif; ?>
+                            <?php endforeach; ?>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+
+                <?php endif; ?>
 
             </div>
 
@@ -347,6 +387,8 @@ if ($prize && $prize['picture'] !== null) {
      data-game-id="<?= $gameId ?>"
      data-player-count="<?= (int) $playerCount ?>"
      data-started="<?= $started ? 1 : 0 ?>"
+     data-in-card-change-window="<?= $inCardChangeWindow ? 1 : 0 ?>"
+     data-card-change-deadline="<?= $cardChangeDeadline ? date('c', strtotime($cardChangeDeadline)) : '' ?>"
      data-claimed-count="<?= $claimedCount ?>"
      data-total-winners="<?= $totalWinners ?>"
      data-reveal-duration="<?= (int) ($game['reveal_duration_ms'] ?? 1200) ?>"

@@ -148,8 +148,23 @@ foreach ($winnerQueue as $levelIndex => $cards) {
 }
 
 // 5️⃣ Mark game as started
-$stmt = $pdo->prepare("UPDATE game SET started=1 WHERE id=?");
-$stmt->execute([$gameId]);
+// The card-change window (if any) starts counting from *now*, since
+// this is the moment the game actually starts — not from creation.
+$cardChangeDeadline = null;
+
+if (!empty($game['card_change_minutes'])) {
+    $cardChangeDeadline = date(
+        'Y-m-d H:i:s',
+        strtotime("+{$game['card_change_minutes']} minutes")
+    );
+}
+
+$stmt = $pdo->prepare("
+    UPDATE game
+    SET started = 1, card_change_deadline = ?
+    WHERE id = ?
+");
+$stmt->execute([$cardChangeDeadline, $gameId]);
 
 header("Location: ../manage_game.php?game_id=" . $gameId);
 exit;

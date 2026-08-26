@@ -3,6 +3,8 @@ require_once 'config/db.php';
 
 $success = '';
 $error = '';
+$error_field = ''; // which input to highlight red on reload, if any
+$card_change_enabled = false; // default for GET requests (no form submitted yet)
 
 function generateGameCode($length = 6) {
     return strtoupper(substr(bin2hex(random_bytes(6)), 0, $length));
@@ -31,6 +33,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ? (int) ($_POST['card_change_minutes'] ?? 0)
         : null;
 
+    // How many times a player may change a given card within the window
+    // above. Independent of the window duration; defaults to 2 when the
+    // window is enabled but the field wasn't posted for some reason.
+    $card_change_limit = $card_change_enabled
+        ? (int) ($_POST['card_change_limit'] ?? 2)
+        : null;
+
     // Enforce max lengths server-side as well (defense in depth)
     if (mb_strlen($prize_name) > 50) {
         $prize_name = mb_substr($prize_name, 0, 50);
@@ -39,23 +48,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $prize_description = mb_substr($prize_description, 0, 100);
     }
 
-    if (empty($pattern_json) || $winners <= 0) {
+    if (empty($pattern_json)) {
 
         $error = "All fields are required.";
+
+    } elseif (
+        !$winners || $winners <= 0
+    ) {
+
+        $error = "Please enter a number of winners between 1 and 5.";
+        $error_field = 'winners';
+
+    } elseif (
+        $winners > 5
+    ) {
+
+        $error = "Number of winners must be between 1 and 5.";
+        $error_field = 'winners';
 
     } elseif (
         $start_mode === 'timer' &&
         (!$timer_minutes || $timer_minutes <= 0)
     ) {
 
-        $error = "Please enter a valid timer duration.";
+        $error = "Please enter a timer duration between 1 and 5 minutes.";
+        $error_field = 'timer_minutes';
+
+    } elseif (
+        $start_mode === 'timer' &&
+        $timer_minutes > 5
+    ) {
+
+        $error = "Timer duration must be between 1 and 5 minutes.";
+        $error_field = 'timer_minutes';
 
     } elseif (
         $card_change_enabled &&
         (!$card_change_minutes || $card_change_minutes <= 0)
     ) {
 
-        $error = "Please enter a valid card change window in minutes.";
+        $error = "Please enter a card change window between 1 and 5 minutes.";
+        $error_field = 'card_change_minutes';
+
+    } elseif (
+        $card_change_enabled &&
+        $card_change_minutes > 5
+    ) {
+
+        $error = "Card change window must be between 1 and 5 minutes.";
+        $error_field = 'card_change_minutes';
+
+    } elseif (
+        $card_change_enabled &&
+        (!$card_change_limit || $card_change_limit <= 0)
+    ) {
+
+        $error = "Please enter a card change limit between 1 and 5.";
+        $error_field = 'card_change_limit';
+
+    } elseif (
+        $card_change_enabled &&
+        $card_change_limit > 5
+    ) {
+
+        $error = "Card change limit must be between 1 and 5.";
+        $error_field = 'card_change_limit';
 
     } elseif (mb_strlen($prize_name) > 50) {
 
@@ -91,6 +148,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // the "start game" action flips started to 1.
         if (!$card_change_enabled) {
             $card_change_minutes = null;
+            $card_change_limit = null;
         }
 
         // ==========================================
@@ -129,9 +187,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 start_mode,
                 timer_minutes,
                 scheduled_start,
-                card_change_minutes
+                card_change_minutes,
+                card_change_limit
             )
-            VALUES (?, ?, 0, ?, ?, 0, ?, ?, ?, ?)
+            VALUES (?, ?, 0, ?, ?, 0, ?, ?, ?, ?, ?)
         ");
 
         $insert->execute([
@@ -142,7 +201,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $start_mode,
             $timer_minutes,
             $scheduledStart,
-            $card_change_minutes
+            $card_change_minutes,
+            $card_change_limit
         ]);
 
         $gameId = $pdo->lastInsertId();
@@ -245,38 +305,49 @@ include 'partials/sidebar.php';
                 <div class="mb-4">
                     <label class="form-label fw-bold">Number of Winners</label>
                     <input type="number" name="winners"
-                           class="form-control"
-                           min="1"
-                           value="1"
+                           id="winners"
+                           class="form-control<?= $error_field === 'winners' ? ' is-invalid' : '' ?>"
+                           min="1" max="5"
+                           value="<?= isset($_POST['winners']) ? (int) $_POST['winners'] : 1 ?>"
                            required>
+                    <div class="invalid-feedback" id="winners_feedback"><?= $error_field === 'winners' ? htmlspecialchars($error) : '' ?></div>
+                    <div class="form-text">
+                        Must be between 1 and 5.
+                    </div>
                 </div>
 
                 <!-- Start Mode -->
                 <div class="mb-4">
                     <label class="form-label fw-bold d-block">Game Start</label>
 
+                    <?php $start_mode_posted = $_POST['start_mode'] ?? 'manual'; ?>
                     <div class="btn-group w-100" role="group">
                         <input type="radio" class="btn-check" name="start_mode"
-                               id="mode_manual" value="manual" checked>
+                               id="mode_manual" value="manual"
+                               <?= $start_mode_posted !== 'timer' ? 'checked' : '' ?>>
                         <label class="btn btn-outline-primary" for="mode_manual">
                             🖐️ Manual
                         </label>
 
                         <input type="radio" class="btn-check" name="start_mode"
-                               id="mode_timer" value="timer">
+                               id="mode_timer" value="timer"
+                               <?= $start_mode_posted === 'timer' ? 'checked' : '' ?>>
                         <label class="btn btn-outline-primary" for="mode_timer">
                             ⏱️ Timer
                         </label>
                     </div>
 
-                    <div id="timerInputWrap" class="mt-3 d-none">
+                    <div id="timerInputWrap" class="mt-3<?= $start_mode_posted === 'timer' ? '' : ' d-none' ?>">
                         <label class="form-label">Auto-start after (minutes)</label>
                         <input type="number" name="timer_minutes"
                                id="timer_minutes"
-                               class="form-control"
-                               min="1" value="5">
+                               class="form-control<?= $error_field === 'timer_minutes' ? ' is-invalid' : '' ?>"
+                               min="1" max="5"
+                               value="<?= isset($_POST['timer_minutes']) ? (int) $_POST['timer_minutes'] : 2 ?>">
+                        <div class="invalid-feedback" id="timer_minutes_feedback"><?= $error_field === 'timer_minutes' ? htmlspecialchars($error) : '' ?></div>
                         <div class="form-text">
                             Game will automatically start this many minutes after creation.
+                            Must be between 1 and 5 minutes.
                         </div>
                     </div>
                 </div>
@@ -287,22 +358,37 @@ include 'partials/sidebar.php';
 
                     <div class="form-check form-switch mb-2">
                         <input class="form-check-input" type="checkbox" role="switch"
-                               id="enable_card_change_limit" name="enable_card_change_limit" value="1">
+                               id="enable_card_change_limit" name="enable_card_change_limit" value="1"
+                               <?= $card_change_enabled ? 'checked' : '' ?>>
                         <label class="form-check-label" for="enable_card_change_limit">
                             Limit how long players can change their cards
                         </label>
                     </div>
 
-                    <div id="cardChangeInputWrap" class="d-none">
+                    <div id="cardChangeInputWrap" class="<?= $card_change_enabled ? '' : 'd-none' ?>">
                         <label class="form-label">Allow card changes for (minutes)</label>
                         <input type="number" name="card_change_minutes"
                                id="card_change_minutes"
-                               class="form-control"
-                               min="1" value="10">
+                               class="form-control<?= $error_field === 'card_change_minutes' ? ' is-invalid' : '' ?>"
+                               min="1" max="5"
+                               value="<?= isset($_POST['card_change_minutes']) ? (int) $_POST['card_change_minutes'] : 2 ?>">
+                        <div class="invalid-feedback" id="card_change_minutes_feedback"><?= $error_field === 'card_change_minutes' ? htmlspecialchars($error) : '' ?></div>
                         <div class="form-text">
                             Players won't be able to change their bingo card after this many
                             minutes from when the game starts (not from creation). Leave the
-                            switch off to allow changes at any time.
+                            switch off to allow changes at any time. Must be between 1 and 5 minutes.
+                        </div>
+
+                        <label class="form-label mt-3">Max card changes per card</label>
+                        <input type="number" name="card_change_limit"
+                               id="card_change_limit"
+                               class="form-control<?= $error_field === 'card_change_limit' ? ' is-invalid' : '' ?>"
+                               min="1" max="5"
+                               value="<?= isset($_POST['card_change_limit']) ? (int) $_POST['card_change_limit'] : 2 ?>">
+                        <div class="invalid-feedback" id="card_change_limit_feedback"><?= $error_field === 'card_change_limit' ? htmlspecialchars($error) : '' ?></div>
+                        <div class="form-text">
+                            How many times a player may change a given card within the window above.
+                            Must be between 1 and 5.
                         </div>
                     </div>
                 </div>
@@ -413,6 +499,68 @@ document.addEventListener('DOMContentLoaded', function () {
     if (cardChangeSwitch && cardChangeWrap) {
         cardChangeSwitch.addEventListener('change', function () {
             cardChangeWrap.classList.toggle('d-none', !cardChangeSwitch.checked);
+            validateMinutesInput(document.getElementById('card_change_minutes'));
+            validateMinutesInput(document.getElementById('card_change_limit'));
+        });
+    }
+
+    // Highlight winners/timer/card-change inputs red when out of range,
+    // and say whether the value is too high or too low.
+    function validateMinutesInput(input) {
+        if (!input) return true;
+
+        const feedback = document.getElementById(input.id + '_feedback');
+        const min = parseInt(input.min, 10);
+        const max = parseInt(input.max, 10);
+        const value = parseInt(input.value, 10);
+
+        let message = '';
+
+        if (isNaN(value)) {
+            message = 'Enter a value.';
+        } else if (value < min) {
+            message = `Too low — minimum is ${min}.`;
+        } else if (value > max) {
+            message = `Too high — maximum is ${max}.`;
+        }
+
+        const isInvalid = message !== '';
+        input.classList.toggle('is-invalid', isInvalid);
+        if (feedback) feedback.textContent = message;
+
+        return !isInvalid;
+    }
+
+    const winnersInput = document.getElementById('winners');
+    const timerMinutesInput = document.getElementById('timer_minutes');
+    const cardChangeMinutesInput = document.getElementById('card_change_minutes');
+    const cardChangeLimitInput = document.getElementById('card_change_limit');
+
+    [winnersInput, timerMinutesInput, cardChangeMinutesInput, cardChangeLimitInput].forEach(function (input) {
+        if (!input) return;
+        input.addEventListener('input', function () { validateMinutesInput(input); });
+        input.addEventListener('blur', function () { validateMinutesInput(input); });
+    });
+
+    // Only enforce validation on submit for whichever mode/switch is active
+    const form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function (e) {
+            let valid = true;
+
+            if (!validateMinutesInput(winnersInput)) valid = false;
+
+            const timerMode = document.getElementById('mode_timer');
+            if (timerMode && timerMode.checked) {
+                if (!validateMinutesInput(timerMinutesInput)) valid = false;
+            }
+
+            if (cardChangeSwitch && cardChangeSwitch.checked) {
+                if (!validateMinutesInput(cardChangeMinutesInput)) valid = false;
+                if (!validateMinutesInput(cardChangeLimitInput)) valid = false;
+            }
+
+            if (!valid) e.preventDefault();
         });
     }
 });

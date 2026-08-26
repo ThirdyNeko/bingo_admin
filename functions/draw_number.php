@@ -43,34 +43,40 @@ $pattern = json_decode($game['pattern'], true);
 $drawnNumbers = array_map('intval', json_decode($game['drawn_numbers'] ?? '[]', true));
 $letters = ['B','I','N','G','O'];
 
-$limit = (int) $totalWinners;
+/* ACTIVE-WINNER RESOLUTION
+   Pull the whole unclaimed queue in level order, then walk down it and
+   treat the first NOT-YET-COMPLETE entry as the active target. Any entry
+   that's already fully drawn (needed numbers + shared number all drawn)
+   but not yet claimed is skipped over — it just sits there waiting for
+   the player to claim it — without blocking the next level from being
+   fed winner numbers. This is what lets the game "move on" to level 2
+   if level 1 finishes but never claims. */
 
 $queueStmt = $pdo->prepare("
-    SELECT TOP $limit *
+    SELECT *
     FROM game_winner_queue
     WHERE game_id = ? AND claimed = 0
     ORDER BY level ASC
 ");
 $queueStmt->execute([$gameId]);
-$queuedWinners = $queueStmt->fetchAll();
+$allQueued = $queueStmt->fetchAll(PDO::FETCH_ASSOC);
 
-if (!$queuedWinners) {
+if (!$allQueued) {
     http_response_code(422);
     echo json_encode(['error' => 'No queued winner found.']);
     exit;
 }
 
-$allNeeded = [];
-$sharedNumber = null;
+$activeWinner = null;
 
-foreach ($queuedWinners as $winner) {
+foreach ($allQueued as $q) {
 
     $cardStmt = $pdo->prepare("
         SELECT card_data, shared_number
-        FROM user_cards 
+        FROM user_cards
         WHERE id = ?
     ");
-    $cardStmt->execute([$winner['card_id']]);
+    $cardStmt->execute([$q['card_id']]);
     $rowData = $cardStmt->fetch(PDO::FETCH_ASSOC);
     $cardData = json_decode($rowData['card_data'], true);
     $sharedNumber = (int) $rowData['shared_number'];
@@ -91,12 +97,31 @@ foreach ($queuedWinners as $winner) {
         }
     }
 
-    $allNeeded[] = $neededNumbers;
+    $isComplete = empty($neededNumbers) && in_array($sharedNumber, $drawnNumbers, true);
+
+    if ($isComplete) {
+        // Fully drawn but not yet claimed — leave them be, move on to
+        // whoever's next in the queue.
+        continue;
+    }
+
+    $activeWinner = [
+        'queueId'      => $q['id'],
+        'cardId'       => $q['card_id'],
+        'level'        => $q['level'],
+        'needed'       => $neededNumbers,
+        'sharedNumber' => $sharedNumber,
+    ];
+    break;
 }
 
-$drawPool = !empty($allNeeded)
-    ? array_unique(array_merge(...$allNeeded))
-    : [];
+if (!$activeWinner) {
+    http_response_code(422);
+    echo json_encode(['error' => 'All queued winners are finished, awaiting claim.']);
+    exit;
+}
+
+$drawPool = $activeWinner['needed'];
 
 $allAvailableNumbers = array_values(array_diff(range(1,75), $drawnNumbers));
 
@@ -147,19 +172,13 @@ foreach ($cards as $card) {
         }
     }
 
-    $isQueued = false;
-    foreach ($queuedWinners as $qw) {
-        if ($qw['card_id'] == $card['id']) {
-            $isQueued = true;
-            break;
-        }
-    }
+    $isActiveWinner = ($card['id'] == $activeWinner['cardId']);
 
-    if (count($missing) == 1 && !$isQueued) {
+    if (count($missing) == 1 && !$isActiveWinner) {
         // Would complete a non-winner on the next draw — never allow this number.
         $blockedNumbers[] = $missing[0];
 
-    } elseif (!$isQueued && count($missing) >= 2 && count($missing) <= $dangerThreshold) {
+    } elseif (!$isActiveWinner && count($missing) >= 2 && count($missing) <= $dangerThreshold) {
         // Weight by closeness: cards nearer completion get more copies in
         // the pool, so they're favored, but every non-winner still gets
         // *some* representation from early in the game.
@@ -249,25 +268,15 @@ if (!empty($winnerNumbers) && $roll <= $winnerChance) {
 
 }
 
-// Shared number trigger (final number for winners)
-foreach ($queuedWinners as $winner) {
+// Shared number trigger (final number for the active winner)
+$sharedNumber = $activeWinner['sharedNumber'];
 
-    $cardStmt = $pdo->prepare("
-        SELECT shared_number
-        FROM user_cards
-        WHERE id = ?
-    ");
-    $cardStmt->execute([$winner['card_id']]);
-    $sharedNumber = (int) $cardStmt->fetchColumn();
+if ($sharedNumber && !in_array($sharedNumber, $drawnNumbers, true)) {
 
-    if ($sharedNumber && !in_array($sharedNumber, $drawnNumbers, true)) {
+    $remaining = array_diff($drawPool, $drawnNumbers, [$sharedNumber]);
 
-        $remaining = array_diff($drawPool, $drawnNumbers, [$sharedNumber]);
-
-        if (empty($remaining) || $forceWinnerFinish) {
-            $number = $sharedNumber;
-            break;
-        }
+    if (empty($remaining) || $forceWinnerFinish) {
+        $number = $sharedNumber;
     }
 }
 

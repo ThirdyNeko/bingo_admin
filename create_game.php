@@ -5,6 +5,7 @@ $success = '';
 $error = '';
 $error_field = ''; // which input to highlight red on reload, if any
 $card_change_enabled = false; // default for GET requests (no form submitted yet)
+$prize_missing = []; // which prize fields are missing when the "all or nothing" rule trips
 
 function generateGameCode($length = 6) {
     return strtoupper(substr(bin2hex(random_bytes(6)), 0, $length));
@@ -21,6 +22,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $prize_name        = trim($_POST['prize_name'] ?? '');
     $prize_description = trim($_POST['prize_description'] ?? '');
+
+    $prize_picture_uploaded = isset($_FILES['prize_picture'])
+        && $_FILES['prize_picture']['error'] === UPLOAD_ERR_OK;
 
     // ==========================================
     // CARD CHANGE WINDOW (how long players may
@@ -46,6 +50,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if (mb_strlen($prize_description) > 100) {
         $prize_description = mb_substr($prize_description, 0, 100);
+    }
+
+    // ==========================================
+    // PRIZE FIELDS ARE ALL-OR-NOTHING
+    // Prize is optional as a whole, but if any one of
+    // name/description/picture is filled in, the other two
+    // become required too.
+    // ==========================================
+    $prize_any_filled = ($prize_name !== '')
+        || ($prize_description !== '')
+        || $prize_picture_uploaded;
+
+    if ($prize_any_filled) {
+        if ($prize_name === '') {
+            $prize_missing[] = 'prize_name';
+        }
+        if ($prize_description === '') {
+            $prize_missing[] = 'prize_description';
+        }
+        if (!$prize_picture_uploaded) {
+            $prize_missing[] = 'prize_picture';
+        }
     }
 
     if (empty($pattern_json)) {
@@ -121,6 +147,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (mb_strlen($prize_description) > 100) {
 
         $error = "Prize description must be 100 characters or fewer.";
+
+    } elseif (!empty($prize_missing)) {
+
+        $error = "If you're adding a prize, please fill in the name, description, and picture.";
+        $error_field = 'prize';
 
     } else {
 
@@ -396,11 +427,20 @@ include 'partials/sidebar.php';
                 <!-- Game Prize -->
                 <div class="mb-4">
                     <label class="form-label fw-bold d-block">Game Prize (optional)</label>
+                    <div class="form-text mb-2">
+                        Leave all three blank to skip a prize, or fill in name, description,
+                        and picture together — if you fill in one, the others are required too.
+                    </div>
+
+                    <?php if ($error_field === 'prize'): ?>
+                        <div class="alert alert-danger py-2 px-3 mb-2"><?= htmlspecialchars($error) ?></div>
+                    <?php endif; ?>
 
                     <input type="text" name="prize_name"
                            id="prize_name"
-                           class="form-control mb-1"
+                           class="form-control mb-1<?= in_array('prize_name', $prize_missing) ? ' is-invalid' : '' ?>"
                            maxlength="50"
+                           value="<?= isset($_POST['prize_name']) ? htmlspecialchars($_POST['prize_name']) : '' ?>"
                            placeholder="Prize Name">
                     <div class="form-text text-end mb-2">
                         <span id="prize_name_count">0</span>/50
@@ -408,17 +448,21 @@ include 'partials/sidebar.php';
 
                     <textarea name="prize_description"
                               id="prize_description"
-                              class="form-control mb-1"
+                              class="form-control mb-1<?= in_array('prize_description', $prize_missing) ? ' is-invalid' : '' ?>"
                               rows="2"
                               maxlength="100"
-                              placeholder="Prize Description"></textarea>
+                              placeholder="Prize Description"><?= isset($_POST['prize_description']) ? htmlspecialchars($_POST['prize_description']) : '' ?></textarea>
                     <div class="form-text text-end mb-2">
                         <span id="prize_description_count">0</span>/100
                     </div>
 
                     <input type="file" name="prize_picture"
-                           class="form-control"
+                           id="prize_picture"
+                           class="form-control<?= in_array('prize_picture', $prize_missing) ? ' is-invalid' : '' ?>"
                            accept="image/*">
+                    <?php if (in_array('prize_picture', $prize_missing)): ?>
+                        <div class="invalid-feedback d-block">A prize picture is required.</div>
+                    <?php endif; ?>
                 </div>
 
                 <!-- Bingo Pattern Grid -->
@@ -542,6 +586,52 @@ document.addEventListener('DOMContentLoaded', function () {
         input.addEventListener('blur', function () { validateMinutesInput(input); });
     });
 
+    // Prize fields: optional as a whole, but if any one is filled the
+    // other two become required — checked live and again on submit.
+    const prizeNameInput = document.getElementById('prize_name');
+    const prizeDescInput = document.getElementById('prize_description');
+    const prizePicInput = document.getElementById('prize_picture');
+
+    function validatePrizeFields() {
+        if (!prizeNameInput || !prizeDescInput || !prizePicInput) return true;
+
+        const nameFilled = prizeNameInput.value.trim() !== '';
+        const descFilled = prizeDescInput.value.trim() !== '';
+        const picFilled = prizePicInput.files && prizePicInput.files.length > 0;
+
+        const anyFilled = nameFilled || descFilled || picFilled;
+
+        const nameMissing = anyFilled && !nameFilled;
+        const descMissing = anyFilled && !descFilled;
+        const picMissing = anyFilled && !picFilled;
+
+        prizeNameInput.classList.toggle('is-invalid', nameMissing);
+        prizeDescInput.classList.toggle('is-invalid', descMissing);
+        prizePicInput.classList.toggle('is-invalid', picMissing);
+
+        let picFeedback = prizePicInput.parentElement.querySelector('.js-prize-picture-feedback');
+        if (picMissing) {
+            if (!picFeedback) {
+                picFeedback = document.createElement('div');
+                picFeedback.className = 'invalid-feedback d-block js-prize-picture-feedback';
+                picFeedback.textContent = 'A prize picture is required.';
+                prizePicInput.insertAdjacentElement('afterend', picFeedback);
+            }
+        } else if (picFeedback) {
+            picFeedback.remove();
+        }
+
+        return !(nameMissing || descMissing || picMissing);
+    }
+
+    if (prizeNameInput && prizeDescInput && prizePicInput) {
+        [prizeNameInput, prizeDescInput].forEach(function (input) {
+            input.addEventListener('input', validatePrizeFields);
+            input.addEventListener('blur', validatePrizeFields);
+        });
+        prizePicInput.addEventListener('change', validatePrizeFields);
+    }
+
     // Only enforce validation on submit for whichever mode/switch is active
     const form = document.querySelector('form');
     if (form) {
@@ -559,6 +649,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (!validateMinutesInput(cardChangeMinutesInput)) valid = false;
                 if (!validateMinutesInput(cardChangeLimitInput)) valid = false;
             }
+
+            if (!validatePrizeFields()) valid = false;
 
             if (!valid) e.preventDefault();
         });

@@ -97,15 +97,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         (!$timer_minutes || $timer_minutes <= 0)
     ) {
 
-        $error = "Please enter a timer duration between 1 and 5 minutes.";
+        $error = "Please enter a timer duration between 1 and 10 minutes.";
         $error_field = 'timer_minutes';
 
     } elseif (
         $start_mode === 'timer' &&
-        $timer_minutes > 5
+        $timer_minutes > 10
     ) {
 
-        $error = "Timer duration must be between 1 and 5 minutes.";
+        $error = "Timer duration must be between 1 and 10 minutes.";
         $error_field = 'timer_minutes';
 
     } elseif (
@@ -373,12 +373,12 @@ include 'partials/sidebar.php';
                         <input type="number" name="timer_minutes"
                                id="timer_minutes"
                                class="form-control<?= $error_field === 'timer_minutes' ? ' is-invalid' : '' ?>"
-                               min="1" max="5"
+                               min="1" max="10"
                                value="<?= isset($_POST['timer_minutes']) ? (int) $_POST['timer_minutes'] : 2 ?>">
                         <div class="invalid-feedback" id="timer_minutes_feedback"><?= $error_field === 'timer_minutes' ? htmlspecialchars($error) : '' ?></div>
                         <div class="form-text">
                             Game will automatically start this many minutes after creation.
-                            Must be between 1 and 5 minutes.
+                            Must be between 1 and 10 minutes.
                         </div>
                     </div>
                 </div>

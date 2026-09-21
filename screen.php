@@ -40,8 +40,10 @@ $countStmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE current_game = ?");
 $countStmt->execute([$gameId]);
 $playerCount = $countStmt->fetchColumn();
 
-$registerUrl = "http://10.10.25.25/bingo/index.php?game_code=" . urlencode($game['game_code']);
-$qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" . urlencode($registerUrl);
+$scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$host   = $_SERVER['HTTP_HOST']; // e.g. "10.10.25.25" or "10.10.25.25:8080"
+
+$registerUrl = "$scheme://$host/bingo/index.php?game_code=" . urlencode($game['game_code']);$qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" . urlencode($registerUrl);
 
 $started = (int)$game['started'] === 1;
 

@@ -396,9 +396,11 @@ if ($prize && $prize['picture'] !== null) {
      data-draw-interval-seconds="<?= $drawIntervalSeconds ?>"
      data-start-mode="<?= htmlspecialchars($game['start_mode'] ?? 'manual') ?>"
      data-scheduled-start="<?= $game['scheduled_start'] ? date('c', strtotime($game['scheduled_start'])) : '' ?>"
+     data-server-now="<?= date('c') ?>"
      style="display:none;"></div>
 
 <script src="sweetalert/dist/sweetalert2.all.min.js"></script>
+<script src="js/clock.js"></script>
 <script src="js/game/screen.js"></script>
 
 </body>

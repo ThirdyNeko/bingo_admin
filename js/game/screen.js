@@ -2,6 +2,13 @@ document.addEventListener("DOMContentLoaded", function () {
   const root = document.getElementById("screen-root");
   if (!root) return;
 
+  // Correct for this device's clock being wrong, once, up front — every
+  // countdown below reads time through BingoClock.now() instead of
+  // Date.now() so it hits zero at the same real-world moment as the
+  // player-facing my_cards.js countdown, regardless of either device's
+  // own clock. Requires js/clock.js loaded before this file.
+  BingoClock.init(root.dataset.serverNow);
+
   // ============================================================
   // DRAW REVEAL ANIMATION SETTINGS
   // durationMs comes from the game's saved setting (edited on the
@@ -39,7 +46,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const countdownEl = document.getElementById("card-change-countdown");
 
     const cardChangeTick = setInterval(() => {
-      const diff = cardChangeDeadline - Date.now();
+      const diff = cardChangeDeadline - BingoClock.now().getTime();
 
       if (diff <= 0) {
         clearInterval(cardChangeTick);
@@ -88,7 +95,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const countdownEl = document.getElementById("lobby-countdown");
 
     const countdownTick = setInterval(() => {
-      const diff = scheduledStart - Date.now();
+      const diff = scheduledStart - BingoClock.now().getTime();
 
       if (diff <= 0) {
         clearInterval(countdownTick);

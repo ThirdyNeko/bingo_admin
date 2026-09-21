@@ -275,24 +275,33 @@ document.addEventListener("DOMContentLoaded", function () {
        current-ball slot, then settles on the real drawn number.
        Timing is controlled entirely by DRAW_REVEAL above.
     ================================ */
+
+  const spinBgm = new Audio("js/audio/bgm.mp3");
+  spinBgm.loop = true;
+  spinBgm.volume = 0.5; // adjust to taste
+
   function cycleThroughNumbers(ballWrap, finalNumber, finalLetter, done) {
     ballWrap.innerHTML = `
-                <div class="bingo-ball cycling" id="cyclingBall">
-                    <div class="outer-letter" id="cyclingLetter">B</div>
-                    <div class="inner-number" id="cyclingNumber">1</div>
-                </div>
-                <p class="lead mt-3">Drawing...</p>
-            `;
+              <div class="bingo-ball cycling" id="cyclingBall">
+                  <div class="outer-letter" id="cyclingLetter">B</div>
+                  <div class="inner-number" id="cyclingNumber">1</div>
+              </div>
+              <p class="lead mt-3">Drawing...</p>
+          `;
 
     const ball = document.getElementById("cyclingBall");
     const letterEl = document.getElementById("cyclingLetter");
     const numberEl = document.getElementById("cyclingNumber");
     const startTime = performance.now();
 
+    spinBgm.currentTime = 0;
+    spinBgm.play().catch((err) => console.warn("Audio play blocked:", err));
+
     function tick() {
       const elapsed = performance.now() - startTime;
 
       if (elapsed >= DRAW_REVEAL.durationMs) {
+        spinBgm.pause();
         ball.className = `bingo-ball ${finalLetter}`;
         letterEl.textContent = finalLetter;
         numberEl.textContent = finalNumber;

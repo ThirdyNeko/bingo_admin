@@ -43,7 +43,8 @@ $playerCount = $countStmt->fetchColumn();
 $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
 $host   = $_SERVER['HTTP_HOST']; // e.g. "10.10.25.25" or "10.10.25.25:8080"
 
-$registerUrl = "$scheme://$host/bingo/index.php?game_code=" . urlencode($game['game_code']);$qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" . urlencode($registerUrl);
+$registerUrl = "$scheme://$host/bingo/index.php?game_code=" . urlencode($game['game_code']);
+$qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" . urlencode($registerUrl);
 
 $started = (int)$game['started'] === 1;
 
@@ -384,6 +385,14 @@ if ($prize && $prize['picture'] !== null) {
     </div>
 
 <?php endif; ?>
+
+<!-- Floating sound control. Starts as "Click to enable sound" (browsers block
+     audio until the page gets a click); afterwards it toggles mute. Its label
+     and behaviour are handled in js/game/screen.js. -->
+<button type="button" id="soundToggle" class="btn btn-sm btn-dark border-secondary"
+        style="position:fixed; bottom:16px; right:16px; z-index:1050; opacity:.85;">
+    🔊 Click to enable sound
+</button>
 
 <div id="screen-root"
      data-game-id="<?= $gameId ?>"

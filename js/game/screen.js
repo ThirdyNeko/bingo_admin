@@ -31,6 +31,124 @@ document.addEventListener("DOMContentLoaded", function () {
   let totalWinners = parseInt(root.dataset.totalWinners, 10);
 
   // ============================================================
+  // SOUND (BGM + NUMBER VOICE-OVER)
+  // Browsers block audio until the page has had a user interaction,
+  // so the floating #soundToggle button starts as "Click to enable
+  // sound". Any click/keypress on the page unlocks audio; after that
+  // the same button toggles mute. The mute choice is remembered in
+  // localStorage so it survives the location.reload() calls below.
+  // ============================================================
+  const SOUND_MUTED_KEY = "bingoScreenMuted";
+  const VOICE_FOLDER = "js/audio/numbers/";
+
+  let soundMuted = false;
+  try {
+    soundMuted = localStorage.getItem(SOUND_MUTED_KEY) === "1";
+  } catch (e) {
+    /* localStorage unavailable — default to unmuted */
+  }
+
+  let audioUnlocked = false;
+  const soundBtn = document.getElementById("soundToggle");
+
+  function updateSoundBtn() {
+    if (!soundBtn) return;
+    if (!audioUnlocked) {
+      soundBtn.textContent = "🔊 Click to enable sound";
+    } else {
+      soundBtn.textContent = soundMuted ? "🔇 Muted" : "🔊 Sound on";
+    }
+  }
+
+  function unlockAudio() {
+    if (audioUnlocked) return;
+    audioUnlocked = true;
+    updateSoundBtn();
+  }
+
+  // Button handler runs before the document-level one (bubbling), so the
+  // very first click on the button only unlocks; later clicks toggle mute.
+  if (soundBtn) {
+    soundBtn.addEventListener("click", function () {
+      if (!audioUnlocked) {
+        unlockAudio();
+        return;
+      }
+      soundMuted = !soundMuted;
+      try {
+        localStorage.setItem(SOUND_MUTED_KEY, soundMuted ? "1" : "0");
+      } catch (e) {
+        /* ignore */
+      }
+      if (soundMuted) {
+        spinBgm.pause();
+        stopVoice();
+      }
+      updateSoundBtn();
+    });
+  }
+  document.addEventListener("click", unlockAudio);
+  document.addEventListener("keydown", unlockAudio);
+  updateSoundBtn();
+
+  // ---------- Number voice-over ----------
+  // functions/voice_manifest.php lists which clips exist for each number
+  // (b1.mp3, b1_2.mp3, ...). Numbers can have 1, 2 or more clips — one is
+  // picked at random each time. Numbers with no clip stay silent.
+  let voiceManifest = {};
+  const lastVoiceFile = {};
+  let currentVoice = null;
+
+  fetch("functions/voice_manifest.php?v=" + Date.now())
+    .then((res) => res.json())
+    .then((m) => {
+      voiceManifest = m || {};
+
+      const missing = [];
+      [
+        ["b", 1, 15],
+        ["i", 16, 30],
+        ["n", 31, 45],
+        ["g", 46, 60],
+        ["o", 61, 75],
+      ].forEach(([l, from, to]) => {
+        for (let n = from; n <= to; n++) {
+          if (!voiceManifest[l + n]) missing.push(l + n);
+        }
+      });
+      if (missing.length) {
+        console.warn("No voice clip for:", missing.join(", "));
+      }
+    })
+    .catch((err) => console.warn("Voice manifest failed:", err));
+
+  function stopVoice() {
+    if (currentVoice) {
+      currentVoice.pause();
+      currentVoice = null;
+    }
+  }
+
+  function playNumberVoice(letter, number) {
+    if (soundMuted) return;
+
+    const key = letter.toLowerCase() + number;
+    const files = voiceManifest[key];
+    if (!files || files.length === 0) return; // no clip recorded — stay silent
+
+    // With 2+ clips avoid repeating the last one; with 1 clip just use it.
+    const pool =
+      files.length > 1 ? files.filter((f) => f !== lastVoiceFile[key]) : files;
+
+    const file = pool[Math.floor(Math.random() * pool.length)];
+    lastVoiceFile[key] = file;
+
+    stopVoice();
+    currentVoice = new Audio(VOICE_FOLDER + file);
+    currentVoice.play().catch((err) => console.warn("Voice blocked:", err));
+  }
+
+  // ============================================================
   // CARD CHANGE WINDOW
   // Game may be "started" but still inside the pre-draw grace period
   // where players can swap cards — no draw (manual or auto) is allowed
@@ -294,8 +412,13 @@ document.addEventListener("DOMContentLoaded", function () {
     const numberEl = document.getElementById("cyclingNumber");
     const startTime = performance.now();
 
-    spinBgm.currentTime = 0;
-    spinBgm.play().catch((err) => console.warn("Audio play blocked:", err));
+    // Cut off any voice clip still playing from the previous draw.
+    stopVoice();
+
+    if (!soundMuted) {
+      spinBgm.currentTime = 0;
+      spinBgm.play().catch((err) => console.warn("Audio play blocked:", err));
+    }
 
     function tick() {
       const elapsed = performance.now() - startTime;
@@ -336,6 +459,9 @@ document.addEventListener("DOMContentLoaded", function () {
                 </div>
                 <p class="lead mt-3">Last number drawn</p>
             `;
+
+      // Announce the number now that the spin has settled on it.
+      playNumberVoice(letter, number);
 
       currentClaimed = data.claimedCount;
       totalWinners = data.totalWinners;

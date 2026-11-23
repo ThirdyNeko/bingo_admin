@@ -59,6 +59,10 @@ $inCardChangeWindow = $started
 $drawMode = $game['draw_mode'] ?? 'auto';
 $drawIntervalSeconds = (int) ($game['draw_interval_seconds'] ?? 5);
 
+// How many numbers have been drawn so far — screen.js uses this to detect
+// when another screen has drawn a number this one hasn't seen yet.
+$drawnCount = count(json_decode($game['drawn_numbers'] ?? '[]', true) ?: []);
+
 // ==========================================
 // GAME PRIZE (photo + name)
 // ==========================================
@@ -405,6 +409,7 @@ if ($prize && $prize['picture'] !== null) {
      data-reveal-duration="<?= (int) ($game['reveal_duration_ms'] ?? 1200) ?>"
      data-draw-mode="<?= htmlspecialchars($drawMode) ?>"
      data-draw-interval-seconds="<?= $drawIntervalSeconds ?>"
+     data-drawn-count="<?= $drawnCount ?>"
      data-start-mode="<?= htmlspecialchars($game['start_mode'] ?? 'manual') ?>"
      data-scheduled-start="<?= $game['scheduled_start'] ? date('c', strtotime($game['scheduled_start'])) : '' ?>"
      data-server-now="<?= date('c') ?>"

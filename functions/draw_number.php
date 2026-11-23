@@ -2,6 +2,17 @@
 header('Content-Type: application/json');
 require_once '../config/db.php';
 
+/* Roll back any open transaction, send a JSON error, and stop. */
+function bail(PDO $pdo, int $code, array $payload)
+{
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    http_response_code($code);
+    echo json_encode($payload);
+    exit;
+}
+
 if (!isset($_POST['game_id'])) {
     http_response_code(400);
     echo json_encode(['error' => 'Game not found.']);
@@ -10,14 +21,20 @@ if (!isset($_POST['game_id'])) {
 
 $gameId = (int) $_POST['game_id'];
 
-$stmt = $pdo->prepare("SELECT * FROM game WHERE id = ?");
+/* ONE DRAW AT A TIME
+   Everything from here to the UPDATE runs in a transaction that holds an
+   update lock on this game's row. If two screens (or two requests) try to
+   draw at the same moment, the second one waits here, then reads the row
+   *after* the first draw was saved and is rejected by the expected_count
+   check below instead of drawing a second number. */
+$pdo->beginTransaction();
+
+$stmt = $pdo->prepare("SELECT * FROM game WITH (UPDLOCK, ROWLOCK) WHERE id = ?");
 $stmt->execute([$gameId]);
 $game = $stmt->fetch();
 
 if (!$game) {
-    http_response_code(404);
-    echo json_encode(['error' => 'Game does not exist.']);
-    exit;
+    bail($pdo, 404, ['error' => 'Game does not exist.']);
 }
 
 // 🚫 Don't draw while the game is still in its card-change window —
@@ -29,19 +46,30 @@ $inCardChangeWindow = (int) $game['started'] === 1
     && strtotime($cardChangeDeadline) > time();
 
 if ($inCardChangeWindow) {
-    http_response_code(409);
-    echo json_encode([
+    bail($pdo, 409, [
         'error' => 'Cannot draw yet — card change window is still open.',
         'cardChangeDeadline' => date('c', strtotime($cardChangeDeadline)),
     ]);
-    exit;
 }
 
 $totalWinners = (int) $game['winners'];
 
 $pattern = json_decode($game['pattern'], true);
-$drawnNumbers = array_map('intval', json_decode($game['drawn_numbers'] ?? '[]', true));
+$drawnNumbers = array_map('intval', json_decode($game['drawn_numbers'] ?? '[]', true) ?: []);
 $letters = ['B','I','N','G','O'];
+
+/* OUT-OF-SYNC GUARD
+   screen.js sends how many numbers it has on screen. If the game already
+   has a different count, another screen drew in the meantime — refuse, and
+   tell the caller to reload so it catches up. Callers that don't send
+   expected_count (e.g. other admin pages) skip this check. */
+if (isset($_POST['expected_count']) && (int) $_POST['expected_count'] !== count($drawnNumbers)) {
+    bail($pdo, 409, [
+        'error'      => 'Screen is out of sync with the game.',
+        'outOfSync'  => true,
+        'drawnCount' => count($drawnNumbers),
+    ]);
+}
 
 /* ACTIVE-WINNER RESOLUTION
    Pull the whole unclaimed queue in level order, then walk down it and
@@ -62,9 +90,7 @@ $queueStmt->execute([$gameId]);
 $allQueued = $queueStmt->fetchAll(PDO::FETCH_ASSOC);
 
 if (!$allQueued) {
-    http_response_code(422);
-    echo json_encode(['error' => 'No queued winner found.']);
-    exit;
+    bail($pdo, 422, ['error' => 'No queued winner found.']);
 }
 
 $activeWinner = null;
@@ -116,9 +142,7 @@ foreach ($allQueued as $q) {
 }
 
 if (!$activeWinner) {
-    http_response_code(422);
-    echo json_encode(['error' => 'All queued winners are finished, awaiting claim.']);
-    exit;
+    bail($pdo, 422, ['error' => 'All queued winners are finished, awaiting claim.']);
 }
 
 $drawPool = $activeWinner['needed'];
@@ -293,6 +317,9 @@ $pdo->prepare("
     $stuckStreak,
     $gameId
 ]);
+
+// Draw saved — release the row lock.
+$pdo->commit();
 
 /* Refresh winners info after the draw */
 $claimedStmt = $pdo->prepare("

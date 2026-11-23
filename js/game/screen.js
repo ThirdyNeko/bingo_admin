@@ -31,6 +31,93 @@ document.addEventListener("DOMContentLoaded", function () {
   let totalWinners = parseInt(root.dataset.totalWinners, 10);
 
   // ============================================================
+  // MIRROR MODE
+  // Open extra screens as screen.php?game_id=5&mirror=1. A mirror never
+  // draws; it just follows the game and reloads when a new number lands.
+  // knownDrawnCount is also sent with every draw request so the server can
+  // refuse a draw from a screen that has fallen behind.
+  // ============================================================
+  const isMirror = new URLSearchParams(location.search).get("mirror") === "1";
+  let knownDrawnCount = parseInt(root.dataset.drawnCount, 10) || 0;
+
+  // ============================================================
+  // DRIVER ELECTION (same browser)
+  // Only ONE tab should run the auto-draw timer. Tabs in the same browser
+  // elect a driver through a heartbeat in localStorage: the driver rewrites
+  // its record every second, and any other tab only takes over if that
+  // record goes stale (driver closed or crashed). Non-driver tabs just
+  // follow along and reload when the driver draws.
+  // Screens on OTHER devices can't see this, so open those as ?mirror=1.
+  // ============================================================
+  const DRIVER_KEY = "bingoDriver_" + gameId;
+  const DRIVER_STALE_MS = 4000;
+  const tabId = Math.random().toString(36).slice(2);
+  let isDriver = false;
+
+  function electDriver() {
+    if (isMirror) {
+      isDriver = false;
+      return;
+    }
+    try {
+      let rec = null;
+      try {
+        rec = JSON.parse(localStorage.getItem(DRIVER_KEY));
+      } catch (e) {
+        rec = null;
+      }
+
+      const now = Date.now();
+      if (!rec || rec.id === tabId || now - rec.ts > DRIVER_STALE_MS) {
+        localStorage.setItem(
+          DRIVER_KEY,
+          JSON.stringify({ id: tabId, ts: now }),
+        );
+        // Read back: if two tabs wrote at once, the last writer wins.
+        const check = JSON.parse(localStorage.getItem(DRIVER_KEY));
+        isDriver = !!check && check.id === tabId;
+      } else {
+        isDriver = false;
+      }
+    } catch (e) {
+      // localStorage unavailable — fall back to every tab driving; the
+      // server-side guard in draw_number.php still prevents double draws.
+      isDriver = !isMirror;
+    }
+  }
+
+  electDriver();
+
+  setInterval(() => {
+    const wasDriver = isDriver;
+    electDriver();
+
+    // This tab just became the driver (previous driver closed) — start the
+    // auto-draw timer that was being skipped while it was a follower.
+    if (
+      isDriver &&
+      !wasDriver &&
+      gameStarted &&
+      drawMode === "auto" &&
+      !inCardChangeWindow &&
+      !isDrawing
+    ) {
+      scheduleAutoDraw();
+    }
+  }, 1000);
+
+  // Hand over immediately when the driver tab closes or reloads, so the
+  // next tab doesn't have to wait for the stale timeout.
+  window.addEventListener("pagehide", () => {
+    try {
+      const rec = JSON.parse(localStorage.getItem(DRIVER_KEY));
+      if (rec && rec.id === tabId) localStorage.removeItem(DRIVER_KEY);
+    } catch (e) {
+      /* ignore */
+    }
+  });
+
+  // ============================================================
   // SOUND (BGM + NUMBER VOICE-OVER)
   // Browsers block audio until the page has had a user interaction,
   // so the floating #soundToggle button starts as "Click to enable
@@ -445,6 +532,8 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function renderDrawResult(data, onFullyDone) {
+    knownDrawnCount = data.drawnNumbers.length;
+
     const number = data.number;
     const letter = letterFor(number);
 
@@ -520,6 +609,55 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   const drawBtn = document.getElementById("drawBtn");
+  if (isMirror && drawBtn) drawBtn.style.display = "none";
+
+  // ============================================================
+  // FOLLOWING DRAWS MADE BY ANOTHER SCREEN
+  // When a different screen draws a number, this one plays the same reveal
+  // (fly-to-history, spin, voice) instead of just reloading. Same-browser
+  // tabs hear about it instantly over a BroadcastChannel; screens on other
+  // devices notice it through the status poll below (up to ~3s later).
+  // ============================================================
+  const drawChannel =
+    "BroadcastChannel" in window
+      ? new BroadcastChannel("bingo-draw-" + gameId)
+      : null;
+
+  function applyRemoteDraw(data) {
+    if (isDrawing) return; // already busy with a reveal
+
+    const count = data.drawnNumbers.length;
+    if (count <= knownDrawnCount) return; // already showing this number
+
+    // Missed more than one draw, or the reveal area isn't on the page
+    // (e.g. still in the card-change view) — just reload to catch up.
+    if (
+      count > knownDrawnCount + 1 ||
+      !document.getElementById("current-ball-wrap")
+    ) {
+      location.reload();
+      return;
+    }
+
+    isDrawing = true;
+    if (drawBtn) {
+      drawBtn.disabled = true;
+      drawBtn.innerHTML = "Drawing...";
+    }
+
+    renderDrawResult(data, function () {
+      isDrawing = false;
+      scheduleAutoDraw(); // no-op unless this tab is the driver
+    });
+  }
+
+  if (drawChannel) {
+    drawChannel.onmessage = (e) => {
+      if (e.data && e.data.type === "draw" && e.data.data) {
+        applyRemoteDraw(e.data.data);
+      }
+    };
+  }
 
   // ============================================================
   // SHARED DRAW TRIGGER
@@ -528,6 +666,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // animation sequencing.
   // ============================================================
   function triggerDraw() {
+    if (isMirror) return; // mirror screens never draw
     if (isDrawing) return;
     if (inCardChangeWindow) return; // belt-and-suspenders; scheduleAutoDraw already guards this
     if (currentClaimed >= totalWinners) return;
@@ -542,10 +681,16 @@ document.addEventListener("DOMContentLoaded", function () {
     fetch("functions/draw_number.php", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: "game_id=" + gameId,
+      body: "game_id=" + gameId + "&expected_count=" + knownDrawnCount,
     })
       .then((res) => res.json())
       .then((data) => {
+        if (data.outOfSync) {
+          // Another screen already drew; catch up by reloading.
+          location.reload();
+          return;
+        }
+
         if (data.error) {
           isDrawing = false;
           if (drawBtn) {
@@ -561,6 +706,16 @@ document.addEventListener("DOMContentLoaded", function () {
             console.warn("Auto-draw stopped:", data.error);
           }
           return;
+        }
+
+        // Tell other tabs in this browser so they play the same spin + voice
+        // at the same moment (other devices catch up through polling).
+        if (drawChannel) {
+          try {
+            drawChannel.postMessage({ type: "draw", data: data });
+          } catch (e) {
+            /* ignore */
+          }
         }
 
         renderDrawResult(data, function () {
@@ -590,6 +745,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function scheduleAutoDraw() {
     clearTimeout(autoDrawTimer);
+    if (isMirror || !isDriver) return; // only the driver tab auto-draws
     if (drawMode !== "auto") return;
     if (!gameStarted) return;
     if (inCardChangeWindow) return; // don't start drawing while cards can still change
@@ -626,6 +782,31 @@ document.addEventListener("DOMContentLoaded", function () {
 
         if (newStarted !== gameStarted) {
           location.reload();
+          return;
+        }
+
+        // Another screen drew a number this one hasn't seen — catch up.
+        // Skipped while this screen is mid-draw so it can't reload itself.
+        const newDrawnCount = parseInt(data.drawn_count);
+        if (
+          !isDrawing &&
+          Number.isFinite(newDrawnCount) &&
+          newDrawnCount > knownDrawnCount
+        ) {
+          const nums = (data.drawn_numbers || []).map((n) => parseInt(n, 10));
+
+          if (nums.length === newDrawnCount) {
+            applyRemoteDraw({
+              number: nums[nums.length - 1],
+              drawnNumbers: nums,
+              claimedCount: newClaimed,
+              totalWinners: totalWinners,
+              winnerNames: data.winner_names || [],
+              finished: newClaimed >= totalWinners,
+            });
+          } else {
+            location.reload();
+          }
           return;
         }
 

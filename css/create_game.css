@@ -1,24 +1,607 @@
-.bingo-table td,
-.bingo-table th {
-    width: 60px;
-    height: 60px;
+/* =========================================================
+   CREATE GAME PAGE
+   ========================================================= */
+
+.create-game-content {
+    background: #f8fafc;
+    min-height: 100vh;
+    padding: 35px !important;
+}
+
+.cg-page-header {
+    margin-bottom: 28px;
+}
+
+.cg-eyebrow {
+    display: block;
+    color: #6366f1;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+}
+
+.cg-page-header h2 {
+    color: #1e293b;
+    font-size: 28px;
+    font-weight: 750;
+    margin: 0;
+}
+
+.cg-page-header p {
+    color: #64748b;
+    font-size: 14px;
+    margin-top: 8px;
+    margin-bottom: 0;
+}
+
+.cg-alert {
+    border-radius: 12px;
+}
+
+/* =========================================================
+   SECTION CARDS
+   ========================================================= */
+
+.cg-card {
+    background: #fff;
+    border: 1px solid #edf0f5;
+    border-radius: 16px;
+    margin-bottom: 24px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.025);
+}
+
+.cg-card-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 22px 24px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.cg-card-header h5 {
+    margin: 0;
+    color: #1e293b;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.cg-card-header p {
+    color: #94a3b8;
+    font-size: 12px;
+    margin: 5px 0 0;
+}
+
+.cg-section-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.cg-icon-blue {
+    background: #eff6ff;
+    color: #3b82f6;
+}
+
+.cg-icon-purple {
+    background: #f5f3ff;
+    color: #8b5cf6;
+}
+
+.cg-icon-green {
+    background: #ecfdf5;
+    color: #10b981;
+}
+
+.cg-icon-orange {
+    background: #fff7ed;
+    color: #f97316;
+}
+
+.cg-card-body {
+    padding: 24px;
+}
+
+.cg-optional-tag {
+    margin-left: auto;
+    background: #f1f5f9;
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 6px 10px;
+    border-radius: 20px;
+}
+
+/* =========================================================
+   FORM ELEMENTS
+   ========================================================= */
+
+.cg-form-group {
+    margin-bottom: 24px;
+}
+
+.cg-form-group:last-child {
+    margin-bottom: 0;
+}
+
+.cg-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 650;
+    color: #334155;
+    margin-bottom: 9px;
+}
+
+.cg-input {
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 11px 13px;
+    font-size: 14px;
+    color: #334155;
+    box-shadow: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.cg-input:focus {
+    border-color: #818cf8;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.10);
+}
+
+.cg-input::placeholder {
+    color: #94a3b8;
+}
+
+.cg-help {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    color: #94a3b8;
+    font-size: 12px;
+    line-height: 1.5;
+    margin-top: 8px;
+}
+
+.cg-help i {
+    color: #818cf8;
+    margin-top: 1px;
+}
+
+.cg-counter {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+/* =========================================================
+   START MODE
+   ========================================================= */
+
+.cg-mode-selection {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.cg-mode-option {
+    position: relative;
+}
+
+.cg-mode-option .btn-check {
+    position: absolute;
+}
+
+.cg-mode-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    background: #fff;
+    transition: all 0.2s ease;
+    width: 100%;
+    min-height: 85px;
+}
+
+.cg-mode-label:hover {
+    border-color: #c7d2fe;
+    background: #fafaff;
+}
+
+.cg-mode-option .btn-check:checked + .cg-mode-label {
+    border-color: #818cf8;
+    background: #f5f3ff;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.07);
+}
+
+.cg-mode-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #eff6ff;
+    color: #3b82f6;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.cg-mode-icon-purple {
+    background: #f5f3ff;
+    color: #8b5cf6;
+}
+
+.cg-mode-label strong {
+    display: block;
+    font-size: 13px;
+    font-weight: 650;
+    color: #334155;
+}
+
+.cg-mode-label small {
+    display: block;
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 4px;
+}
+
+.cg-mode-check {
+    margin-left: auto;
+    color: #cbd5e1;
+    font-size: 17px;
+}
+
+.cg-mode-option .btn-check:checked + .cg-mode-label .cg-mode-check {
+    color: #6366f1;
+}
+
+/* =========================================================
+   SUB SETTINGS
+   ========================================================= */
+
+.cg-sub-settings {
+    background: #f8fafc;
+    border: 1px solid #edf0f5;
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.cg-input-unit {
+    position: relative;
+}
+
+.cg-input-unit .cg-input {
+    padding-right: 85px;
+}
+
+.cg-input-unit span {
+    position: absolute;
+    top: 50%;
+    right: 14px;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    font-size: 12px;
+}
+
+/* =========================================================
+   CARD CHANGE SWITCH
+   ========================================================= */
+
+.cg-toggle-panel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 16px;
+    border: 1px solid #edf0f5;
+    border-radius: 12px;
+    background: #fafbff;
+    margin-bottom: 18px;
+}
+
+.cg-toggle-text strong {
+    display: block;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 650;
+}
+
+.cg-toggle-text small {
+    display: block;
+    color: #94a3b8;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+.cg-switch .form-check-input {
+    width: 42px;
+    height: 22px;
+    cursor: pointer;
+}
+
+.cg-switch .form-check-input:checked {
+    background-color: #6366f1;
+    border-color: #6366f1;
+}
+
+.cg-switch .form-check-input:focus {
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+/* =========================================================
+   PRIZE SECTION
+   ========================================================= */
+
+.cg-prize-note {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    background: #f8fafc;
+    border: 1px solid #edf0f5;
+    border-radius: 10px;
+    padding: 13px;
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.6;
+    margin-bottom: 22px;
+}
+
+.cg-prize-note i {
+    color: #6366f1;
+    margin-top: 1px;
+}
+
+/* =========================================================
+   WINNING PATTERN
+   ========================================================= */
+
+.cg-pattern-instructions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #64748b;
+    font-size: 13px;
+    margin-bottom: 20px;
+}
+
+.cg-pattern-instructions i {
+    color: #6366f1;
+}
+
+.cg-pattern-container {
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+    background: #f8fafc;
+    border: 1px solid #edf0f5;
+    border-radius: 14px;
+}
+
+.bingo-table {
+    width: 100%;
+    max-width: 390px;
+    table-layout: fixed;
+    border-collapse: separate;
+    border-spacing: 7px;
+}
+
+.bingo-table thead th {
+    background: #111827;
+    color: #fff;
+    border: none;
+    border-radius: 9px;
+    text-align: center;
+    vertical-align: middle;
+    height: 45px;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.bingo-table tbody td {
+    position: relative;
+    height: 62px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #fff;
+    color: #64748b;
     text-align: center;
     vertical-align: middle;
     cursor: pointer;
-    font-weight: bold;
-    transition: 0.2s ease-in-out;
+    transition: all 0.18s ease;
+    padding: 0;
 }
 
 .pattern-cell:hover {
-    transform: scale(1.05);
+    border-color: #818cf8;
+    background: #f5f3ff;
+    transform: translateY(-2px);
 }
 
 .pattern-cell.active {
-    background-color: #198754 !important;
-    color: white;
+    background: #6366f1 !important;
+    border-color: #6366f1 !important;
+    color: #fff !important;
+    box-shadow: 0 4px 10px rgba(99, 102, 241, 0.20);
+}
+
+.pattern-check {
+    opacity: 0;
+    font-size: 22px;
+    transition: opacity 0.15s;
+}
+
+.pattern-cell.active .pattern-check {
+    opacity: 1;
 }
 
 .free {
-    background-color: #ffc107 !important;
-    color: black;
+    background: #fef3c7 !important;
+    border-color: #fcd34d !important;
+    color: #92400e !important;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: default !important;
+}
+
+.free i {
+    display: block;
+    font-size: 15px;
+    margin-bottom: 2px;
+}
+
+.cg-pattern-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-top: 18px;
+}
+
+.cg-pattern-hint {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    color: #94a3b8;
+    font-size: 12px;
+}
+
+.cg-pattern-hint i {
+    color: #f59e0b;
+}
+
+.cg-reset-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #fff;
+    color: #64748b;
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.cg-reset-btn:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #334155;
+}
+
+/* =========================================================
+   ACTION BUTTONS
+   ========================================================= */
+
+.cg-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 5px 0 30px;
+}
+
+.cg-reset-main {
+    padding: 12px 20px;
+}
+
+.cg-submit-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    background: #6366f1;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 22px;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+}
+
+.cg-submit-btn:hover {
+    background: #4f46e5;
+    color: #fff;
+    transform: translateY(-2px);
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 991px) {
+    .create-game-content {
+        padding: 25px !important;
+    }
+}
+
+@media (max-width: 768px) {
+
+    .create-game-content {
+        padding: 20px !important;
+    }
+
+    .cg-page-header h2 {
+        font-size: 24px;
+    }
+
+    .cg-card-header {
+        padding: 18px;
+    }
+
+    .cg-card-body {
+        padding: 18px;
+    }
+
+    .cg-mode-selection {
+        grid-template-columns: 1fr;
+    }
+
+    .cg-pattern-container {
+        padding: 8px;
+    }
+
+    .bingo-table {
+        border-spacing: 4px;
+    }
+
+    .bingo-table tbody td {
+        height: 50px;
+    }
+
+    .bingo-table thead th {
+        height: 38px;
+    }
+
+    .cg-pattern-footer {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .cg-pattern-footer .cg-reset-btn {
+        width: 100%;
+    }
+
+    .cg-form-actions {
+        flex-direction: column-reverse;
+    }
+
+    .cg-form-actions button {
+        width: 100%;
+    }
+
+    .cg-toggle-panel {
+        align-items: flex-start;
+    }
+
 }

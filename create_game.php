@@ -313,161 +313,379 @@ include 'partials/sidebar.php';
 
 <link rel="stylesheet" href="css/create_game.css">
 
-<div class="col-md-10 p-4 d-flex justify-content-center">
-    <div style="width:100%; max-width:600px;">
-    <h3 class="mb-4">Create Game</h3>
+<div class="col-md-10 create-game-content">
+
+    <!-- HEADER -->
+    <div class="cg-page-header">
+        <div>
+            <span class="cg-eyebrow">GAME MANAGEMENT</span>
+            <h2>Create Game</h2>
+            <p>Configure your game, winning pattern, and optional prize.</p>
+        </div>
+    </div>
 
     <?php if ($error): ?>
-        <div class="alert alert-danger"><?= $error ?></div>
-    <?php endif; ?>
-    <?php if ($success): ?>
-        <div class="alert alert-success"><?= $success ?></div>
-    <?php endif; ?>
-
-    <div class="card shadow-sm">
-        <div class="card-header bg-dark text-white">
-            Define Winning Pattern
+        <div class="alert alert-danger cg-alert">
+            <i class="bi bi-exclamation-circle me-2"></i>
+            <?= htmlspecialchars($error) ?>
         </div>
-        <div class="card-body">
+    <?php endif; ?>
 
-            <form method="POST" enctype="multipart/form-data" id="createGameForm">
+    <?php if ($success): ?>
+        <div class="alert alert-success cg-alert">
+            <i class="bi bi-check-circle me-2"></i>
+            <?= htmlspecialchars($success) ?>
+        </div>
+    <?php endif; ?>
 
-                <!-- Number of Winners -->
-                <div class="mb-4">
-                    <label class="form-label fw-bold">Number of Winners</label>
-                    <input type="number" name="winners"
+    <form method="POST" enctype="multipart/form-data" id="createGameForm">
+
+        <!-- GAME CONFIGURATION -->
+        <div class="cg-card">
+
+            <div class="cg-card-header">
+                <div class="cg-section-icon cg-icon-blue">
+                    <i class="bi bi-sliders"></i>
+                </div>
+
+                <div>
+                    <h5>Game Configuration</h5>
+                    <p>Set the basic rules for your Bingo game.</p>
+                </div>
+            </div>
+
+            <div class="cg-card-body">
+
+                <!-- WINNERS -->
+                <div class="cg-form-group">
+                    <label for="winners" class="cg-label">
+                        Number of Winners
+                    </label>
+
+                    <input type="number"
+                           name="winners"
                            id="winners"
-                           class="form-control<?= $error_field === 'winners' ? ' is-invalid' : '' ?>"
-                           min="1" max="5"
+                           class="form-control cg-input<?= $error_field === 'winners' ? ' is-invalid' : '' ?>"
+                           min="1"
+                           max="5"
                            value="<?= isset($_POST['winners']) ? (int) $_POST['winners'] : 1 ?>"
                            required>
-                    <div class="invalid-feedback" id="winners_feedback"><?= $error_field === 'winners' ? htmlspecialchars($error) : '' ?></div>
-                    <div class="form-text">
-                        Must be between 1 and 5.
+
+                    <div class="invalid-feedback" id="winners_feedback">
+                        <?= $error_field === 'winners' ? htmlspecialchars($error) : '' ?>
+                    </div>
+
+                    <div class="cg-help">
+                        <i class="bi bi-info-circle"></i>
+                        You can set between 1 and 5 winners.
                     </div>
                 </div>
 
-                <!-- Start Mode -->
-                <div class="mb-4">
-                    <label class="form-label fw-bold d-block">Game Start</label>
+                <!-- START MODE -->
+                <div class="cg-form-group">
+
+                    <label class="cg-label d-block">Game Start Mode</label>
 
                     <?php $start_mode_posted = $_POST['start_mode'] ?? 'manual'; ?>
-                    <div class="btn-group w-100" role="group">
-                        <input type="radio" class="btn-check" name="start_mode"
-                               id="mode_manual" value="manual"
-                               <?= $start_mode_posted !== 'timer' ? 'checked' : '' ?>>
-                        <label class="btn btn-outline-primary" for="mode_manual">
-                            🖐️ Manual
-                        </label>
 
-                        <input type="radio" class="btn-check" name="start_mode"
-                               id="mode_timer" value="timer"
-                               <?= $start_mode_posted === 'timer' ? 'checked' : '' ?>>
-                        <label class="btn btn-outline-primary" for="mode_timer">
-                            ⏱️ Timer
-                        </label>
+                    <div class="cg-mode-selection">
+
+                        <div class="cg-mode-option">
+                            <input type="radio"
+                                   class="btn-check"
+                                   name="start_mode"
+                                   id="mode_manual"
+                                   value="manual"
+                                   <?= $start_mode_posted !== 'timer' ? 'checked' : '' ?>>
+
+                            <label for="mode_manual" class="cg-mode-label">
+                                <div class="cg-mode-icon">
+                                    <i class="bi bi-hand-index-thumb"></i>
+                                </div>
+
+                                <div>
+                                    <strong>Manual Start</strong>
+                                    <small>Start the game when ready.</small>
+                                </div>
+
+                                <i class="bi bi-check-circle cg-mode-check"></i>
+                            </label>
+                        </div>
+
+                        <div class="cg-mode-option">
+                            <input type="radio"
+                                   class="btn-check"
+                                   name="start_mode"
+                                   id="mode_timer"
+                                   value="timer"
+                                   <?= $start_mode_posted === 'timer' ? 'checked' : '' ?>>
+
+                            <label for="mode_timer" class="cg-mode-label">
+                                <div class="cg-mode-icon cg-mode-icon-purple">
+                                    <i class="bi bi-clock"></i>
+                                </div>
+
+                                <div>
+                                    <strong>Timer Start</strong>
+                                    <small>Automatically start after a delay.</small>
+                                </div>
+
+                                <i class="bi bi-check-circle cg-mode-check"></i>
+                            </label>
+                        </div>
+
                     </div>
 
-                    <div id="timerInputWrap" class="mt-3<?= $start_mode_posted === 'timer' ? '' : ' d-none' ?>">
-                        <label class="form-label">Auto-start after (minutes)</label>
-                        <input type="number" name="timer_minutes"
+                    <!-- TIMER INPUT -->
+                    <div id="timerInputWrap"
+                         class="cg-sub-settings mt-3<?= $start_mode_posted === 'timer' ? '' : ' d-none' ?>">
+
+                        <label for="timer_minutes" class="cg-label">
+                            Auto-start after (minutes)
+                        </label>
+
+                        <input type="number"
+                               name="timer_minutes"
                                id="timer_minutes"
-                               class="form-control<?= $error_field === 'timer_minutes' ? ' is-invalid' : '' ?>"
-                               min="1" max="10"
+                               class="form-control cg-input<?= $error_field === 'timer_minutes' ? ' is-invalid' : '' ?>"
+                               min="1"
+                               max="10"
                                value="<?= isset($_POST['timer_minutes']) ? (int) $_POST['timer_minutes'] : 2 ?>">
-                        <div class="invalid-feedback" id="timer_minutes_feedback"><?= $error_field === 'timer_minutes' ? htmlspecialchars($error) : '' ?></div>
-                        <div class="form-text">
-                            Game will automatically start this many minutes after creation.
-                            Must be between 1 and 10 minutes.
+
+                        <div class="invalid-feedback" id="timer_minutes_feedback">
+                            <?= $error_field === 'timer_minutes' ? htmlspecialchars($error) : '' ?>
+                        </div>
+
+                        <div class="cg-help">
+                            <i class="bi bi-clock-history"></i>
+                            Automatically starts 1–10 minutes after creation.
                         </div>
                     </div>
+
                 </div>
 
-                <!-- Card Change Window -->
-                <div class="mb-4">
-                    <label class="form-label fw-bold d-block">Card Change Window</label>
+            </div>
+        </div>
 
-                    <div class="form-check form-switch mb-2">
-                        <input class="form-check-input" type="checkbox" role="switch"
-                               id="enable_card_change_limit" name="enable_card_change_limit" value="1"
+
+        <!-- CARD CHANGE SETTINGS -->
+        <div class="cg-card">
+
+            <div class="cg-card-header">
+                <div class="cg-section-icon cg-icon-purple">
+                    <i class="bi bi-arrow-repeat"></i>
+                </div>
+
+                <div>
+                    <h5>Card Change Settings</h5>
+                    <p>Control when and how players may change their cards.</p>
+                </div>
+            </div>
+
+            <div class="cg-card-body">
+
+                <div class="cg-toggle-panel">
+
+                    <div class="cg-toggle-text">
+                        <strong>Enable Card Change Limit</strong>
+                        <small>
+                            Restrict card changes after the game begins.
+                        </small>
+                    </div>
+
+                    <div class="form-check form-switch cg-switch">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="enable_card_change_limit"
+                               name="enable_card_change_limit"
+                               value="1"
                                <?= $card_change_enabled ? 'checked' : '' ?>>
-                        <label class="form-check-label" for="enable_card_change_limit">
-                            Limit how long players can change their cards
-                        </label>
                     </div>
 
-                    <div id="cardChangeInputWrap" class="<?= $card_change_enabled ? '' : 'd-none' ?>">
-                        <label class="form-label">Allow card changes for (minutes)</label>
-                        <input type="number" name="card_change_minutes"
-                               id="card_change_minutes"
-                               class="form-control<?= $error_field === 'card_change_minutes' ? ' is-invalid' : '' ?>"
-                               min="1" max="5"
-                               value="<?= isset($_POST['card_change_minutes']) ? (int) $_POST['card_change_minutes'] : 2 ?>">
-                        <div class="invalid-feedback" id="card_change_minutes_feedback"><?= $error_field === 'card_change_minutes' ? htmlspecialchars($error) : '' ?></div>
-                        <div class="form-text">
-                            Players won't be able to change their bingo card after this many
-                            minutes from when the game starts (not from creation). Leave the
-                            switch off to allow changes at any time. Must be between 1 and 5 minutes.
-                        </div>
-
-                        <label class="form-label mt-3">Max card changes per card</label>
-                        <input type="number" name="card_change_limit"
-                               id="card_change_limit"
-                               class="form-control<?= $error_field === 'card_change_limit' ? ' is-invalid' : '' ?>"
-                               min="1" max="5"
-                               value="<?= isset($_POST['card_change_limit']) ? (int) $_POST['card_change_limit'] : 2 ?>">
-                        <div class="invalid-feedback" id="card_change_limit_feedback"><?= $error_field === 'card_change_limit' ? htmlspecialchars($error) : '' ?></div>
-                        <div class="form-text">
-                            How many times a player may change a given card within the window above.
-                            Must be between 1 and 5.
-                        </div>
-                    </div>
                 </div>
 
-                <!-- Game Prize -->
-                <div class="mb-4">
-                    <label class="form-label fw-bold d-block">Game Prize (optional)</label>
-                    <div class="form-text mb-2">
-                        Leave all three blank to skip a prize, or fill in name, description,
-                        and picture together — if you fill in one, the others are required too.
+                <div id="cardChangeInputWrap"
+                     class="<?= $card_change_enabled ? '' : 'd-none' ?>">
+
+                    <div class="cg-sub-settings">
+
+                        <div class="cg-form-group">
+                            <label for="card_change_minutes" class="cg-label">
+                                Card Change Window
+                            </label>
+
+                            <div class="cg-input-unit">
+                                <input type="number"
+                                       name="card_change_minutes"
+                                       id="card_change_minutes"
+                                       class="form-control cg-input<?= $error_field === 'card_change_minutes' ? ' is-invalid' : '' ?>"
+                                       min="1"
+                                       max="5"
+                                       value="<?= isset($_POST['card_change_minutes']) ? (int) $_POST['card_change_minutes'] : 2 ?>">
+
+                                <span>minutes</span>
+                            </div>
+
+                            <div class="invalid-feedback" id="card_change_minutes_feedback">
+                                <?= $error_field === 'card_change_minutes' ? htmlspecialchars($error) : '' ?>
+                            </div>
+
+                            <div class="cg-help">
+                                <i class="bi bi-hourglass-split"></i>
+                                The countdown begins when the game actually starts.
+                            </div>
+                        </div>
+
+                        <div class="cg-form-group mb-0">
+                            <label for="card_change_limit" class="cg-label">
+                                Maximum Changes per Card
+                            </label>
+
+                            <input type="number"
+                                   name="card_change_limit"
+                                   id="card_change_limit"
+                                   class="form-control cg-input<?= $error_field === 'card_change_limit' ? ' is-invalid' : '' ?>"
+                                   min="1"
+                                   max="5"
+                                   value="<?= isset($_POST['card_change_limit']) ? (int) $_POST['card_change_limit'] : 2 ?>">
+
+                            <div class="invalid-feedback" id="card_change_limit_feedback">
+                                <?= $error_field === 'card_change_limit' ? htmlspecialchars($error) : '' ?>
+                            </div>
+
+                            <div class="cg-help">
+                                <i class="bi bi-arrow-repeat"></i>
+                                Maximum of 1–5 card changes per player.
+                            </div>
+                        </div>
+
                     </div>
 
-                    <?php if ($error_field === 'prize'): ?>
-                        <div class="alert alert-danger py-2 px-3 mb-2"><?= htmlspecialchars($error) ?></div>
-                    <?php endif; ?>
+                </div>
 
-                    <input type="text" name="prize_name"
+            </div>
+        </div>
+
+
+        <!-- PRIZE -->
+        <div class="cg-card">
+
+            <div class="cg-card-header">
+                <div class="cg-section-icon cg-icon-green">
+                    <i class="bi bi-gift"></i>
+                </div>
+
+                <div>
+                    <h5>Game Prize</h5>
+                    <p>Attach a prize to this game if applicable.</p>
+                </div>
+
+                <span class="cg-optional-tag">OPTIONAL</span>
+            </div>
+
+            <div class="cg-card-body">
+
+                <div class="cg-prize-note">
+                    <i class="bi bi-info-circle"></i>
+                    <span>
+                        Leave all fields empty to skip. If you add a prize,
+                        the name, description, and picture are all required.
+                    </span>
+                </div>
+
+                <?php if ($error_field === 'prize'): ?>
+                    <div class="alert alert-danger py-2 px-3">
+                        <?= htmlspecialchars($error) ?>
+                    </div>
+                <?php endif; ?>
+
+                <div class="cg-form-group">
+                    <label for="prize_name" class="cg-label">
+                        Prize Name
+                    </label>
+
+                    <input type="text"
+                           name="prize_name"
                            id="prize_name"
-                           class="form-control mb-1<?= in_array('prize_name', $prize_missing) ? ' is-invalid' : '' ?>"
                            maxlength="50"
+                           class="form-control cg-input mb-1<?= in_array('prize_name', $prize_missing) ? ' is-invalid' : '' ?>"
                            value="<?= isset($_POST['prize_name']) ? htmlspecialchars($_POST['prize_name']) : '' ?>"
-                           placeholder="Prize Name">
-                    <div class="form-text text-end mb-2">
+                           placeholder="Enter prize name">
+
+                    <div class="form-text text-end cg-counter">
                         <span id="prize_name_count">0</span>/50
                     </div>
+                </div>
+
+                <div class="cg-form-group">
+                    <label for="prize_description" class="cg-label">
+                        Prize Description
+                    </label>
 
                     <textarea name="prize_description"
                               id="prize_description"
-                              class="form-control mb-1<?= in_array('prize_description', $prize_missing) ? ' is-invalid' : '' ?>"
-                              rows="2"
+                              class="form-control cg-input mb-1<?= in_array('prize_description', $prize_missing) ? ' is-invalid' : '' ?>"
+                              rows="3"
                               maxlength="100"
-                              placeholder="Prize Description"><?= isset($_POST['prize_description']) ? htmlspecialchars($_POST['prize_description']) : '' ?></textarea>
-                    <div class="form-text text-end mb-2">
+                              placeholder="Describe the prize"><?= isset($_POST['prize_description']) ? htmlspecialchars($_POST['prize_description']) : '' ?></textarea>
+
+                    <div class="form-text text-end cg-counter">
                         <span id="prize_description_count">0</span>/100
                     </div>
-
-                    <input type="file" name="prize_picture"
-                           id="prize_picture"
-                           class="form-control<?= in_array('prize_picture', $prize_missing) ? ' is-invalid' : '' ?>"
-                           accept="image/*">
-                    <?php if (in_array('prize_picture', $prize_missing)): ?>
-                        <div class="invalid-feedback d-block">A prize picture is required.</div>
-                    <?php endif; ?>
                 </div>
 
-                <!-- Bingo Pattern Grid -->
-                <div class="text-center mb-4">
-                    <table class="table table-bordered table-dark m-auto bingo-table">
+                <div class="cg-form-group mb-0">
+                    <label for="prize_picture" class="cg-label">
+                        Prize Picture
+                    </label>
+
+                    <input type="file"
+                           name="prize_picture"
+                           id="prize_picture"
+                           class="form-control cg-input<?= in_array('prize_picture', $prize_missing) ? ' is-invalid' : '' ?>"
+                           accept="image/*">
+
+                    <?php if (in_array('prize_picture', $prize_missing)): ?>
+                        <div class="invalid-feedback d-block">
+                            A prize picture is required.
+                        </div>
+                    <?php endif; ?>
+
+                    <div class="cg-help">
+                        <i class="bi bi-image"></i>
+                        Upload an image of the prize.
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+
+        <!-- WINNING PATTERN -->
+        <div class="cg-card">
+
+            <div class="cg-card-header">
+                <div class="cg-section-icon cg-icon-orange">
+                    <i class="bi bi-grid-3x3"></i>
+                </div>
+
+                <div>
+                    <h5>Winning Pattern</h5>
+                    <p>Select the squares required to win.</p>
+                </div>
+            </div>
+
+            <div class="cg-card-body">
+
+                <div class="cg-pattern-instructions">
+                    <i class="bi bi-cursor"></i>
+                    Click the squares to select your winning pattern.
+                </div>
+
+                <div class="cg-pattern-container">
+
+                    <table class="table bingo-table m-0">
                         <thead>
                             <tr>
                                 <th>B</th>
@@ -477,42 +695,72 @@ include 'partials/sidebar.php';
                                 <th>O</th>
                             </tr>
                         </thead>
+
                         <tbody>
-                            <?php for($r=0;$r<5;$r++): ?>
+                            <?php for ($r = 0; $r < 5; $r++): ?>
                                 <tr>
-                                    <?php for($c=0;$c<5;$c++): ?>
-                                        <?php if($r==2 && $c==2): ?>
-                                            <td class="free">FREE</td>
+                                    <?php for ($c = 0; $c < 5; $c++): ?>
+
+                                        <?php if ($r == 2 && $c == 2): ?>
+                                            <td class="free">
+                                                <i class="bi bi-star-fill"></i>
+                                                <span>FREE</span>
+                                            </td>
                                         <?php else: ?>
                                             <td class="pattern-cell"
                                                 data-row="<?= $r ?>"
                                                 data-col="<?= $c ?>">
+                                                <span class="pattern-check">
+                                                    <i class="bi bi-check-lg"></i>
+                                                </span>
                                             </td>
                                         <?php endif; ?>
+
                                     <?php endfor; ?>
                                 </tr>
                             <?php endfor; ?>
                         </tbody>
                     </table>
+
                 </div>
 
                 <input type="hidden" name="pattern_json" id="pattern_json" required>
 
-                <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-primary w-100">
-                        🎯 Create Game
-                    </button>
-                    <button type="button" id="resetPattern"
-                            class="btn btn-outline-secondary w-100">
+                <div class="cg-pattern-footer">
+                    <div class="cg-pattern-hint">
+                        <i class="bi bi-lightbulb"></i>
+                        <span>Select multiple squares to create a custom pattern.</span>
+                    </div>
+
+                    <button type="button" id="resetPattern" class="cg-reset-btn">
+                        <i class="bi bi-arrow-counterclockwise"></i>
                         Reset Pattern
                     </button>
                 </div>
 
-            </form>
+            </div>
+        </div>
+
+
+        <!-- ACTION BUTTONS -->
+        <div class="cg-form-actions">
+
+            <button type="button"
+                    id="resetForm"
+                    class="cg-reset-btn cg-reset-main"
+                    onclick="document.getElementById('createGameForm').reset();">
+                Reset Form
+            </button>
+
+            <button type="submit" class="cg-submit-btn">
+                <i class="bi bi-bullseye"></i>
+                Create Game
+            </button>
 
         </div>
-    </div>
-    </div>
+
+    </form>
+
 </div>
 
 <script src="js/game/create_game.js"></script>

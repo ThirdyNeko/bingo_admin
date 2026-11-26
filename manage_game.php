@@ -115,11 +115,12 @@ if (isset($_GET['error'])) {
     $gameError = $errorMessages[$_GET['error']] ?? null;
 }
 
+
 include 'partials/header.php';
 include 'partials/sidebar.php';
 ?>
 
-<div class="col-md-10 p-4" id="manage-game-root"
+<div class="col-md-10 p-4 manage-game-content" id="manage-game-root"
      data-game-id="<?= $gameId ?>"
      data-player-count="<?= $playerCount ?>"
      data-game-started="<?= $game['started'] ? '1' : '0' ?>"
@@ -128,166 +129,345 @@ include 'partials/sidebar.php';
      data-start-mode="<?= htmlspecialchars($game['start_mode'] ?? 'manual') ?>"
      data-scheduled-start="<?= $game['scheduled_start'] ? date('c', strtotime($game['scheduled_start'])) : '' ?>">
 
-    <h3 class="mb-4">Manage Game</h3>
+    <!-- PAGE HEADER -->
+    <div class="mg-page-header">
+        <div>
+            <span class="mg-eyebrow">GAME CONTROL CENTER</span>
+            <h2>Manage Game</h2>
+            <p>Monitor players, configure game settings, and control your game session.</p>
+        </div>
+
+        <a href="manage_games.php" class="mg-back-btn">
+            <i class="bi bi-arrow-left"></i>
+            Back to Games
+        </a>
+    </div>
 
     <?php if ($gameError): ?>
-        <div class="alert alert-danger">
+        <div class="mg-alert-error">
+            <i class="bi bi-exclamation-circle-fill"></i>
             <?= htmlspecialchars($gameError) ?>
         </div>
     <?php endif; ?>
 
-    <!-- Game Info -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-dark text-white">
-            Game Information
+    <!-- GAME OVERVIEW -->
+    <div class="mg-overview-grid">
+
+        <div class="mg-overview-card">
+            <div class="mg-overview-icon purple">
+                <i class="bi bi-controller"></i>
+            </div>
+            <div class="mg-overview-label">Game Code</div>
+            <div class="mg-overview-value mg-game-code">
+                <?= htmlspecialchars($game['game_code']) ?>
+            </div>
         </div>
-        <div class="card-body">
-            <p><strong>Game Code:</strong> <?= htmlspecialchars($game['game_code']) ?></p>
-            <p><strong>Winners Required:</strong> <?= $game['winners'] ?></p>
-            <p><strong>Current Winners:</strong>
-            <?php
-            $winners = json_decode($game['game_winners'], true);
 
-            if (!empty($winners)) {
-                echo htmlspecialchars(implode(', ', $winners));
-            } else {
-                echo 'No winners yet';
-            }
-            ?>
-            </p>
+        <div class="mg-overview-card">
+            <div class="mg-overview-icon blue">
+                <i class="bi bi-trophy"></i>
+            </div>
+            <div class="mg-overview-label">Winners Needed</div>
+            <div class="mg-overview-value">
+                <?= (int)$game['winners'] ?>
+            </div>
+        </div>
 
-            <hr>
+        <div class="mg-overview-card">
+            <div class="mg-overview-icon green">
+                <i class="bi bi-award"></i>
+            </div>
+            <div class="mg-overview-label">Winners Declared</div>
+            <div class="mg-overview-value">
+                <?php
+                $winners = json_decode($game['game_winners'], true);
+                echo !empty($winners) ? count($winners) : 0;
+                ?>
+                <span class="mg-overview-muted">/ <?= (int)$game['winners'] ?></span>
+            </div>
+        </div>
 
-            <p class="mb-2"><strong>Number Reveal Animation</strong></p>
-            <form method="POST" class="d-flex align-items-center gap-2 flex-wrap">
-                <input type="number"
-                       name="reveal_duration"
-                       class="form-control form-control-sm"
-                       style="max-width:100px;"
-                       min="1"
-                       max="5"
-                       step="0.1"
-                       value="<?= htmlspecialchars($revealDurationSeconds) ?>"
-                       required>
-                <span class="text-muted small">seconds</span>
-                <button type="submit" name="update_reveal_duration" class="btn btn-sm btn-outline-primary">
-                    Save
-                </button>
-            </form>
-            <p class="text-muted small mt-2 mb-0">
-                How long the number "spins" on the Game Screen before the real drawn number is revealed. Must be between 1 and 5 seconds.
-            </p>
+        <div class="mg-overview-card">
+            <div class="mg-overview-icon orange">
+                <i class="bi bi-people"></i>
+            </div>
+            <div class="mg-overview-label">Joined Players</div>
+            <div class="mg-overview-value" id="players-count">
+                <?= $playerCount ?>
+            </div>
+        </div>
 
-            <hr>
+    </div>
 
-            <p class="mb-2"><strong>Number Draw Mode</strong></p>
-            <form method="POST" class="d-flex align-items-center gap-3 flex-wrap" id="drawModeForm">
-                <div class="form-check">
-                    <input class="form-check-input" type="radio" name="draw_mode" id="drawModeAuto"
-                           value="auto" <?= $drawMode === 'auto' ? 'checked' : '' ?>>
-                    <label class="form-check-label" for="drawModeAuto">Automatic</label>
+    <!-- GAME SETTINGS -->
+    <div class="mg-settings-card">
+
+        <div class="mg-section-header">
+            <div class="mg-section-heading">
+                <div class="mg-section-icon">
+                    <i class="bi bi-sliders"></i>
                 </div>
-                <div class="form-check">
-                    <input class="form-check-input" type="radio" name="draw_mode" id="drawModeManual"
-                           value="manual" <?= $drawMode === 'manual' ? 'checked' : '' ?>>
-                    <label class="form-check-label" for="drawModeManual">Manual</label>
+                <div>
+                    <h5>Game Settings</h5>
+                    <p>Configure how numbers are revealed and drawn.</p>
                 </div>
+            </div>
+        </div>
 
-                <div class="d-flex align-items-center gap-2" id="drawIntervalWrap"
-                     style="<?= $drawMode === 'manual' ? 'display:none;' : '' ?>">
-                    <input type="number"
-                           name="draw_interval_seconds"
-                           class="form-control form-control-sm"
-                           style="max-width:100px;"
-                           min="1"
-                           max="60"
-                           step="1"
-                           value="<?= $drawIntervalSeconds ?>">
-                    <span class="text-muted small">sec between draws</span>
+        <div class="mg-settings-grid">
+
+            <!-- REVEAL DURATION -->
+            <div class="mg-setting-box">
+                <div class="mg-setting-title">
+                    <i class="bi bi-hourglass-split"></i>
+                    Number Reveal Animation
                 </div>
 
-                <button type="submit" name="update_draw_mode" class="btn btn-sm btn-outline-primary">
-                    Save
-                </button>
-            </form>
-            <p class="text-muted small mt-2 mb-0">
-                Automatic: numbers draw on their own every N seconds on the Game Screen.
-                Manual: the operator clicks "Draw Next Number" on the Game Screen to draw each ball.
-            </p>
+                <p class="mg-setting-description">
+                    Set how long the number spins on the game screen before the actual number is revealed.
+                </p>
+
+                <form method="POST" class="mg-setting-form">
+                    <div class="mg-input-with-unit">
+                        <input type="number"
+                               name="reveal_duration"
+                               class="mg-input"
+                               min="1"
+                               max="5"
+                               step="0.1"
+                               value="<?= htmlspecialchars((string)$revealDurationSeconds) ?>"
+                               required>
+                        <span>seconds</span>
+                    </div>
+
+                    <button type="submit" name="update_reveal_duration" class="mg-save-btn">
+                        <i class="bi bi-check2"></i>
+                        Save
+                    </button>
+                </form>
+
+                <div class="mg-setting-hint">
+                    <i class="bi bi-info-circle"></i>
+                    Allowed duration: 1–5 seconds.
+                </div>
+            </div>
+
+            <!-- DRAW MODE -->
+            <div class="mg-setting-box">
+                <div class="mg-setting-title">
+                    <i class="bi bi-arrow-repeat"></i>
+                    Number Draw Mode
+                </div>
+
+                <p class="mg-setting-description">
+                    Choose whether numbers are drawn automatically or by the operator.
+                </p>
+
+                <form method="POST" id="drawModeForm">
+
+                    <div class="mg-draw-options">
+
+                        <label class="mg-draw-option" for="drawModeAuto">
+                            <input class="mg-draw-radio"
+                                   type="radio"
+                                   name="draw_mode"
+                                   id="drawModeAuto"
+                                   value="auto"
+                                   <?= $drawMode === 'auto' ? 'checked' : '' ?>>
+
+                            <div class="mg-draw-option-content">
+                                <i class="bi bi-play-circle"></i>
+                                <div>
+                                    <strong>Automatic</strong>
+                                    <span>Draw numbers automatically</span>
+                                </div>
+                            </div>
+                        </label>
+
+                        <label class="mg-draw-option" for="drawModeManual">
+                            <input class="mg-draw-radio"
+                                   type="radio"
+                                   name="draw_mode"
+                                   id="drawModeManual"
+                                   value="manual"
+                                   <?= $drawMode === 'manual' ? 'checked' : '' ?>>
+
+                            <div class="mg-draw-option-content">
+                                <i class="bi bi-hand-index-thumb"></i>
+                                <div>
+                                    <strong>Manual</strong>
+                                    <span>Operator draws each number</span>
+                                </div>
+                            </div>
+                        </label>
+
+                    </div>
+
+                    <div class="mg-interval-wrap" id="drawIntervalWrap"
+                         style="<?= $drawMode === 'manual' ? 'display:none;' : '' ?>">
+
+                        <div class="mg-input-with-unit">
+                            <input type="number"
+                                   name="draw_interval_seconds"
+                                   class="mg-input"
+                                   min="1"
+                                   max="60"
+                                   step="1"
+                                   value="<?= $drawIntervalSeconds ?>">
+                            <span>seconds</span>
+                        </div>
+
+                        <small>Interval between automatic draws.</small>
+                    </div>
+
+                    <button type="submit" name="update_draw_mode" class="mg-save-btn">
+                        <i class="bi bi-check2"></i>
+                        Save Draw Settings
+                    </button>
+
+                </form>
+
+                <div class="mg-setting-hint">
+                    <i class="bi bi-info-circle"></i>
+                    Automatic draws follow the configured interval. Manual draws require operator action.
+                </div>
+            </div>
+
         </div>
     </div>
 
-    <!-- Players -->
-    <div class="card shadow-sm">
-        <div class="card-header bg-dark text-white">
-            Joined Players (<span id="players-count"><?= $playerCount ?></span>)
-        </div>
+    <!-- PLAYER MANAGEMENT -->
+    <div class="mg-players-card">
 
-        <div class="card-body">
-
-            <div class="table-responsive">
-                <table id="playersTable" class="table table-bordered align-middle w-100">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Name</th>
-                            <th>Department</th>
-                            <th>Mode</th>
-                            <th>Cards</th>
-                            <th>Restriction</th>
-                        </tr>
-                    </thead>
-                </table>
+        <div class="mg-players-header">
+            <div class="mg-section-heading">
+                <div class="mg-section-icon">
+                    <i class="bi bi-people"></i>
+                </div>
+                <div>
+                    <h5>Joined Players</h5>
+                    <p>Manage player settings and restrictions.</p>
+                </div>
             </div>
 
-            <?php if (!$game['started']): ?>
+            <div class="mg-player-counter">
+                <i class="bi bi-person-check"></i>
+                <span id="players-count-badge"><?= $playerCount ?></span>
+                <span>Players</span>
+            </div>
+        </div>
 
-                <?php if ($game['start_mode'] === 'timer' && $game['scheduled_start']): ?>
-                    <div class="mt-3 alert alert-info mb-2">
-                        Game starts automatically at
-                        <strong><?= date('h:i A', strtotime($game['scheduled_start'])) ?></strong>
-                        — <span id="countdown"></span>
-                    </div>
-                <?php endif; ?>
+        <div class="mg-table-container">
+            <table id="playersTable" class="table align-middle w-100">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Name</th>
+                        <th>Department</th>
+                        <th>Mode</th>
+                        <th>Cards</th>
+                        <th>Restriction</th>
+                    </tr>
+                </thead>
+            </table>
+        </div>
 
-                <?php if ($playerCount === 0): ?>
-                    <div class="mt-3">
-                        <button type="button" class="btn btn-lg btn-secondary w-100" disabled>
-                            🚀 Start Game (waiting for players to join)
-                        </button>
-                    </div>
-                <?php else: ?>
-                    <div class="mt-3">
-                        <form method="POST" action="functions/start_game.php">
-                            <input type="hidden" name="game_id" value="<?= $gameId ?>">
-                            <button type="submit" class="btn btn-lg btn-primary w-100">
-                                🚀 Start Game<?= $game['start_mode'] === 'timer' ? ' Now' : '' ?>
-                            </button>
-                        </form>
-                    </div>
-                <?php endif; ?>
+        <!-- START STATUS -->
+        <?php if (!$game['started']): ?>
 
-            <?php else: ?>
-                <div class="mt-3">
-                    <span class="text-success fw-bold">Game Started ✅</span>
+            <?php if ($game['start_mode'] === 'timer' && $game['scheduled_start']): ?>
+                <div class="mg-countdown-panel">
+                    <div class="mg-countdown-icon">
+                        <i class="bi bi-clock"></i>
+                    </div>
+                    <div>
+                        <strong>Scheduled Game Start</strong>
+                        <p>
+                            Scheduled at
+                            <?= date('h:i A', strtotime($game['scheduled_start'])) ?>
+                        </p>
+                        <div id="countdown" class="mg-countdown-value">
+                            Waiting for countdown...
+                        </div>
+                    </div>
                 </div>
             <?php endif; ?>
 
-            <div class="mt-3">
-                <a href="screen.php?game_id=<?= $gameId ?>" target="_blank"
-                class="btn btn-lg btn-dark w-100">
-                    🎬 Open Game Screen
-                </a>
+            <?php if ($playerCount === 0): ?>
+
+                <div class="mg-start-panel waiting">
+                    <div class="mg-start-icon">
+                        <i class="bi bi-hourglass"></i>
+                    </div>
+                    <div class="mg-start-text">
+                        <strong>Waiting for Players</strong>
+                        <p>Players need to join before the game can begin.</p>
+                    </div>
+                    <button type="button" class="mg-start-btn disabled" disabled>
+                        <i class="bi bi-play-fill"></i>
+                        Start Game
+                    </button>
+                </div>
+
+            <?php else: ?>
+
+                <div class="mg-start-panel ready">
+                    <div class="mg-start-icon">
+                        <i class="bi bi-play-circle"></i>
+                    </div>
+                    <div class="mg-start-text">
+                        <strong>Game Ready</strong>
+                        <p><?= $playerCount ?> player<?= $playerCount !== 1 ? 's' : '' ?> joined. You can start the game now.</p>
+                    </div>
+
+                    <form method="POST" action="functions/start_game.php">
+                        <input type="hidden" name="game_id" value="<?= $gameId ?>">
+                        <button type="submit" class="mg-start-btn">
+                            <i class="bi bi-play-fill"></i>
+                            Start Game<?= $game['start_mode'] === 'timer' ? ' Now' : '' ?>
+                        </button>
+                    </form>
+                </div>
+
+            <?php endif; ?>
+
+        <?php else: ?>
+
+            <div class="mg-start-panel started">
+                <div class="mg-start-icon">
+                    <i class="bi bi-check-circle-fill"></i>
+                </div>
+                <div class="mg-start-text">
+                    <strong>Game is Running</strong>
+                    <p>The game has already started.</p>
+                </div>
+                <span class="mg-started-status">
+                    <i class="bi bi-check-circle"></i>
+                    Started
+                </span>
             </div>
 
-        </div>
+        <?php endif; ?>
+
+        <!-- GAME SCREEN BUTTON -->
+        <a href="screen.php?game_id=<?= $gameId ?>"
+           target="_blank"
+           class="mg-screen-btn">
+            <i class="bi bi-display"></i>
+            Open Game Screen
+            <i class="bi bi-box-arrow-up-right mg-screen-arrow"></i>
+        </a>
+
     </div>
 
 </div>
+
 <link rel="stylesheet" href="css/datatables.min.css">
+<link rel="stylesheet" href="css/manage_game.css">
+
 <script src="js/jquery-4.0.0.min.js"></script>
 <script src="js/datatables.min.js"></script>
-
 <script src="js/game/manage_game.js"></script>
+
 </body>
 </html>

@@ -4,29 +4,46 @@ document.addEventListener("DOMContentLoaded", function () {
 
   const gameId = root.dataset.gameId;
   const gameStarted = root.dataset.gameStarted === "1";
-  let currentCount = parseInt(root.dataset.playerCount, 10);
+  let currentCount = parseInt(root.dataset.playerCount, 10) || 0;
 
-  // Which field determines "no cards" depends on game state:
-  // - Before start: card_count is just the player's requested setting,
-  //   nothing has been generated yet, so flag card_count === 0.
-  // - After start: cards actually exist (or don't) in user_cards,
-  //   so flag actual_cards === 0 instead.
+  // ============================================================
+  // CARD VALIDATION
+  // ============================================================
   function hasNoCards(rowData) {
     if (gameStarted) {
       return !rowData.actual_cards || rowData.actual_cards <= 0;
     }
+
     return !rowData.card_count || rowData.card_count <= 0;
   }
 
+  // ============================================================
+  // PLAYER DATATABLE
+  // ============================================================
   const playersTable = $("#playersTable").DataTable({
     processing: true,
     serverSide: true,
     ordering: false,
     responsive: true,
     pageLength: 25,
+    lengthMenu: [10, 25, 50, 100],
+
     language: {
+      processing: "Loading players...",
       emptyTable: "No players joined yet.",
+      zeroRecords: "No matching players found.",
+      search: "",
+      searchPlaceholder: "Search players...",
+      lengthMenu: "Show _MENU_ players",
+      info: "Showing _START_ to _END_ of _TOTAL_ players",
+      infoEmpty: "No players available",
+      infoFiltered: "(filtered from _MAX_ total players)",
+      paginate: {
+        previous: "‹",
+        next: "›",
+      },
     },
+
     ajax: {
       url: "functions/game_players_list.php",
       type: "POST",
@@ -41,9 +58,19 @@ document.addEventListener("DOMContentLoaded", function () {
         console.error("Response:", xhr.responseText);
       },
     },
+
     columns: [
-      { data: "row_num", orderable: false, searchable: false, width: "50px" },
-      { data: "name" },
+      {
+        data: "row_num",
+        orderable: false,
+        searchable: false,
+        width: "50px",
+      },
+
+      {
+        data: "name",
+      },
+
       {
         data: "department",
         orderable: false,
@@ -53,7 +80,14 @@ document.addEventListener("DOMContentLoaded", function () {
           return data ? data : '<span class="text-muted">—</span>';
         },
       },
-      { data: "mode", orderable: false, searchable: false, width: "120px" },
+
+      {
+        data: "mode",
+        orderable: false,
+        searchable: false,
+        width: "120px",
+      },
+
       {
         data: "card_count",
         orderable: false,
@@ -74,14 +108,12 @@ document.addEventListener("DOMContentLoaded", function () {
               "</span>"
             );
           }
+
           return label;
         },
       },
+
       {
-        // Restriction: wins > 0 means restricted (odds of winning lowered).
-        // Restrict = wins + 1, Unrestrict = wins reset to 0.
-        // Only editable before the game starts.
-        // Requires "wins" and "id" (user id) in game_players_list.php rows.
         data: "wins",
         orderable: false,
         searchable: false,
@@ -92,6 +124,7 @@ document.addEventListener("DOMContentLoaded", function () {
           const wins = parseInt(data, 10) || 0;
           const restricted = wins > 0;
 
+          // Restriction cannot be changed once the game starts.
           if (gameStarted) {
             return restricted
               ? '<span class="badge bg-warning text-dark">Restricted</span>'
@@ -102,7 +135,9 @@ document.addEventListener("DOMContentLoaded", function () {
           const btnClass = restricted
             ? "btn-outline-success"
             : "btn-outline-warning";
+
           const label = restricted ? "Unrestrict" : "Restrict";
+
           const badge = restricted
             ? '<span class="badge bg-warning text-dark me-2">Restricted</span>'
             : "";
@@ -127,11 +162,11 @@ document.addEventListener("DOMContentLoaded", function () {
         },
       },
     ],
-    // Highlight the whole row for players with no cards, so it's obvious
-    // at a glance before Start Game (missing setting) or after (generation gap).
-    createdRow: function (row, data, dataIndex) {
+
+    createdRow: function (row, data) {
       if (hasNoCards(data)) {
         $(row).addClass("table-danger");
+
         $(row).attr(
           "title",
           gameStarted
@@ -142,22 +177,40 @@ document.addEventListener("DOMContentLoaded", function () {
     },
   });
 
+  // ============================================================
+  // PLAYER COUNT BADGES
+  // ============================================================
+  function updatePlayerCountDisplay(count) {
+    const countElement = document.getElementById("players-count");
+    const badgeElement = document.getElementById("players-count-badge");
+
+    if (countElement) {
+      countElement.textContent = count;
+    }
+
+    if (badgeElement) {
+      badgeElement.textContent = count;
+    }
+  }
+
+  // ============================================================
+  // LIVE PLAYER COUNT
+  // ============================================================
   function checkForNewPlayers() {
     fetch("functions/player_count.php?game_id=" + encodeURIComponent(gameId), {
       credentials: "same-origin",
     })
       .then((res) => {
-        console.log("player_count HTTP:", res.status);
-        console.log("player_count URL:", res.url);
+        if (!res.ok) {
+          throw new Error("HTTP " + res.status);
+        }
 
         return res.text();
       })
       .then((count) => {
-        console.log("player_count response:", count);
+        const newCount = parseInt(count.trim(), 10);
 
-        count = parseInt(count.trim(), 10);
-
-        if (!Number.isFinite(count)) {
+        if (!Number.isFinite(newCount)) {
           console.error(
             "player_count.php returned a non-numeric value:",
             count,
@@ -165,16 +218,11 @@ document.addEventListener("DOMContentLoaded", function () {
           return;
         }
 
-        if (count !== currentCount) {
-          console.log("Player count changed:", currentCount, "→", count);
+        if (newCount !== currentCount) {
+          console.log("Player count changed:", currentCount, "→", newCount);
 
-          currentCount = count;
-
-          const countElement = document.getElementById("players-count");
-
-          if (countElement) {
-            countElement.textContent = count;
-          }
+          currentCount = newCount;
+          updatePlayerCountDisplay(newCount);
 
           playersTable.ajax.reload(null, false);
         }
@@ -189,8 +237,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // ============================================================
   // AUTO-START COUNTDOWN
-  // Only for games that haven't started and use start_mode === "timer".
-  // Values come from data-* attributes on #manage-game-root.
   // ============================================================
   const startMode = root.dataset.startMode;
   const scheduledStartRaw = root.dataset.scheduledStart;
@@ -199,41 +245,63 @@ document.addEventListener("DOMContentLoaded", function () {
   if (!gameStarted && startMode === "timer" && scheduledStartRaw) {
     const scheduledStart = new Date(scheduledStartRaw).getTime();
 
-    const tick = setInterval(() => {
-      const diff = scheduledStart - Date.now();
+    if (!Number.isNaN(scheduledStart)) {
+      const tick = setInterval(() => {
+        const diff = scheduledStart - Date.now();
 
-      if (diff <= 0) {
-        clearInterval(tick);
-        if (countdownEl) countdownEl.textContent = "starting…";
+        if (diff <= 0) {
+          clearInterval(tick);
 
-        fetch("functions/start_game.php", {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: "game_id=" + encodeURIComponent(gameId),
-        }).then(() => location.reload());
-        return;
-      }
+          if (countdownEl) {
+            countdownEl.textContent = "Starting...";
+          }
 
-      const m = Math.floor(diff / 60000);
-      const s = Math.floor((diff % 60000) / 1000);
-      if (countdownEl) countdownEl.textContent = `${m}m ${s}s remaining`;
-    }, 1000);
+          fetch("functions/start_game.php", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: "game_id=" + encodeURIComponent(gameId),
+          })
+            .then(() => location.reload())
+            .catch((err) => {
+              console.error("Auto-start failed:", err);
+            });
+
+          return;
+        }
+
+        const m = Math.floor(diff / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
+
+        if (countdownEl) {
+          countdownEl.textContent = `${m}m ${s}s remaining`;
+        }
+      }, 1000);
+    }
   }
 
   // ============================================================
-  // DRAW MODE FORM: hide the interval box when "Manual" is selected
+  // DRAW MODE TOGGLE
   // ============================================================
   const drawModeAuto = document.getElementById("drawModeAuto");
   const drawModeManual = document.getElementById("drawModeManual");
+  const drawIntervalWrap = document.getElementById("drawIntervalWrap");
 
   function toggleDrawIntervalWrap() {
-    const wrap = document.getElementById("drawIntervalWrap");
-    if (!wrap || !drawModeAuto) return;
-    wrap.style.display = drawModeAuto.checked ? "" : "none";
+    if (!drawIntervalWrap || !drawModeAuto) return;
+
+    drawIntervalWrap.style.display = drawModeAuto.checked ? "" : "none";
   }
 
-  if (drawModeAuto)
+  if (drawModeAuto) {
     drawModeAuto.addEventListener("change", toggleDrawIntervalWrap);
-  if (drawModeManual)
+  }
+
+  if (drawModeManual) {
     drawModeManual.addEventListener("change", toggleDrawIntervalWrap);
+  }
+
+  // Initialize visibility
+  toggleDrawIntervalWrap();
 });

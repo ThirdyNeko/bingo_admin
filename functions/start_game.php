@@ -36,38 +36,64 @@ $letters = ['B','I','N','G','O'];
 $pattern = json_decode($game['pattern'], true);
 $maxWinners = $game['winners'] ?? 2;
 
-$cardsWithWeights = [];
+// Cards are split into two pools:
+//  - $normalCards:     players with wins = 0
+//  - $restrictedCards: players with wins > 0 (restricted from the manage page)
+// Restricted cards are only ever used as winners if there aren't enough
+// normal cards to fill the winner slots, and they always sit at the very
+// end of the winner queue.
+$normalCards = [];
+$restrictedCards = [];
 $allCardIds = [];
 
 // 1️⃣ Generate cards for players
 foreach ($players as $player) {
     $userId = $player['id'];
     $cardCount = max(1, $player['card_count'] ?? 1);
+    $wins = (int) ($player['wins'] ?? 0);
+    $isRestricted = $wins > 0;
+
     for ($i = 0; $i < $cardCount; $i++) {
         $randomCard = generateRandomBingoCard();
         $stmt = $pdo->prepare("INSERT INTO user_cards (user_id, game_id, card_data) VALUES (?,?,?)");
         $stmt->execute([$userId, $gameId, json_encode($randomCard)]);
         $cardId = $pdo->lastInsertId();
 
-        $weight = calculatePriorityWeight((int)($player['wins'] ?? 0), $player['department'] ?? '', $player['role'] ?? '');
-        $cardsWithWeights[] = ['card_id' => $cardId, 'weight' => $weight];
+        $weight = calculatePriorityWeight($wins, $player['department'] ?? '', $player['role'] ?? '');
+        $entry = ['card_id' => $cardId, 'weight' => $weight];
+
+        if ($isRestricted) {
+            $restrictedCards[] = $entry;
+        } else {
+            $normalCards[] = $entry;
+        }
         $allCardIds[] = $cardId;
     }
 }
 
 // 🚫 Guard: if for some reason no cards were generated, bail out cleanly.
-if (empty($cardsWithWeights)) {
+if (empty($allCardIds)) {
     header("Location: ../manage_game.php?game_id=" . $gameId . "&error=no_cards");
     exit;
 }
 
 // Never try to pick more winners than there are cards available.
-$maxWinners = min($maxWinners, count($cardsWithWeights));
+$maxWinners = min($maxWinners, count($allCardIds));
 
 // 2️⃣ Pick winner cards
+// Normal pool first. Restricted cards are only drawn once the normal
+// pool is empty.
+// weightedRandomPick() removes the picked item from the array it is given,
+// so whatever is left in each pool afterwards is exactly the "other" cards.
 $winnerCardIds = [];
 for ($i = 0; $i < $maxWinners; $i++) {
-    $picked = weightedRandomPick($cardsWithWeights);
+    if (!empty($normalCards)) {
+        $picked = weightedRandomPick($normalCards);
+    } elseif (!empty($restrictedCards)) {
+        $picked = weightedRandomPick($restrictedCards);
+    } else {
+        break;
+    }
     if ($picked) $winnerCardIds[] = $picked;
 }
 
@@ -118,21 +144,27 @@ if (!empty($winnerCardIds)) {
 }
 
 // 4️⃣ Build winner queue
-$otherCards = array_values(array_diff($allCardIds, $winnerCardIds));
+// Level 1 = the picked winners. Remaining normal cards fill the next
+// levels, and restricted cards come strictly after all of them (they
+// never share a level with a normal card).
+$normalOthers     = array_column($normalCards, 'card_id');
+$restrictedOthers = array_column($restrictedCards, 'card_id');
 
 $winnerQueue = [];
 $winnerQueue[] = $winnerCardIds;
 
 $queueLevel = count($winnerCardIds) + 1;
 
-while (!empty($otherCards)) {
-    $levelCards = array_splice($otherCards, 0, $queueLevel);
+foreach ([$normalOthers, $restrictedOthers] as $group) {
+    while (!empty($group)) {
+        $levelCards = array_splice($group, 0, $queueLevel);
 
-    if (!empty($levelCards)) {
-        $winnerQueue[] = $levelCards;
+        if (!empty($levelCards)) {
+            $winnerQueue[] = $levelCards;
+        }
+
+        $queueLevel++;
     }
-
-    $queueLevel++;
 }
 
 foreach ($winnerQueue as $levelIndex => $cards) {

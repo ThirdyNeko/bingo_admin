@@ -75,6 +75,29 @@ $stmt->execute([$gameId]);
 $game = $stmt->fetch();
 if(!$game){ echo "<p class='text-danger'>Game does not exist.</p>"; exit; }
 
+/* ==============================
+   HANDLE RESTRICT / UNRESTRICT (pre-start only)
+   restrict   = wins + 1
+   unrestrict = wins reset to 0
+============================== */
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['set_restriction'])) {
+    if (!$game['started']) {
+        $userId = (int) ($_POST['user_id'] ?? 0);
+
+        if ($_POST['set_restriction'] === 'restrict') {
+            $sql = "UPDATE users SET wins = wins + 1 WHERE id = ? AND current_game = ?";
+        } else {
+            $sql = "UPDATE users SET wins = 0 WHERE id = ? AND current_game = ?";
+        }
+
+        $restrictStmt = $pdo->prepare($sql);
+        $restrictStmt->execute([$userId, $gameId]);
+    }
+
+    header("Location: manage_game.php?game_id=".$gameId);
+    exit;
+}
+
 $playerCountStmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE current_game=?");
 $playerCountStmt->execute([$gameId]);
 $playerCount = (int) $playerCountStmt->fetchColumn();
@@ -206,8 +229,10 @@ include 'partials/sidebar.php';
                         <tr>
                             <th>#</th>
                             <th>Name</th>
+                            <th>Department</th>
                             <th>Mode</th>
                             <th>Cards</th>
+                            <th>Restriction</th>
                         </tr>
                     </thead>
                 </table>

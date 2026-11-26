@@ -50,11 +50,12 @@ $filteredCount = (int) $countStmt->fetchColumn();
 // ===== Paged data (ROW_NUMBER for SQL Server 2012 compatibility) =====
 // actual_cards = how many cards actually exist in user_cards for this game right now
 // (only meaningful once the game has started; will be 0 for everyone before that).
+// wins = restriction flag (wins > 0 means restricted).
 $sql = "
-    SELECT id, name, auto_mode, card_count, actual_cards
+    SELECT id, name, department, auto_mode, card_count, wins, actual_cards
     FROM (
         SELECT
-            u.id, u.name, u.auto_mode, u.card_count,
+            u.id, u.name, u.department, u.auto_mode, u.card_count, u.wins,
             (SELECT COUNT(*) FROM user_cards uc WHERE uc.user_id = u.id AND uc.game_id = ?) AS actual_cards,
             ROW_NUMBER() OVER (ORDER BY u.id ASC) AS rn
         FROM users u
@@ -83,10 +84,13 @@ foreach ($rows as $p) {
 
     $data[] = [
         'row_num'      => $rowNum++,
+        'id'           => (int) $p['id'],
         'name'         => htmlspecialchars($p['name']),
+        'department'   => htmlspecialchars($p['department'] ?? ''),
         'mode'         => $modeBadge,
         'card_count'   => (int) ($p['card_count'] ?? 1),
         'actual_cards' => (int) ($p['actual_cards'] ?? 0),
+        'wins'         => (int) ($p['wins'] ?? 0),
     ];
 }
 

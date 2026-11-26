@@ -13,6 +13,18 @@ function bail(PDO $pdo, int $code, array $payload)
     exit;
 }
 
+/* Random element from the first non-empty pool, or null if every pool is empty.
+   Replaces bare array_rand() calls, which throw on an empty array. */
+function pickFirst(array ...$pools)
+{
+    foreach ($pools as $pool) {
+        if (!empty($pool)) {
+            return $pool[array_rand($pool)];
+        }
+    }
+    return null;
+}
+
 if (!isset($_POST['game_id'])) {
     http_response_code(400);
     echo json_encode(['error' => 'Game not found.']);
@@ -146,15 +158,31 @@ if (!$activeWinner) {
 }
 
 $drawPool = $activeWinner['needed'];
+$sharedNumber = $activeWinner['sharedNumber'];
 
-$allAvailableNumbers = array_values(array_diff(range(1,75), $drawnNumbers));
+$availableRaw = array_values(array_diff(range(1,75), $drawnNumbers));
+
+if (empty($availableRaw)) {
+    bail($pdo, 422, ['error' => 'No numbers left to draw.']);
+}
+
+$allAvailableNumbers = $availableRaw;
 
 /* SMART DRAW ENGINE */
 
-$winnerNumbers = array_values(array_diff($drawPool, $drawnNumbers));
+$winnerRemainingRaw = array_values(array_diff($drawPool, $drawnNumbers)); // active winner's undrawn numbers (excl. shared)
+$winnerNumbers = $winnerRemainingRaw;
 $neutralPool = array_values(array_diff($allAvailableNumbers, $drawPool));
 $dangerPool = [];
-$blockedNumbers = [];
+
+/* Two kinds of "one number away" cards:
+   - co-winners: cards sharing the active winner's shared number (the other
+     level-1 winners). They're MEANT to finish together with the active
+     winner, so they are not counted as "stuck" bystanders.
+   - bystanders: every other card. These must never be completed by a draw
+     unless it is truly unavoidable (see the fallbacks below). */
+$coWinnerBlocked = [];
+$bystanderBlocked = [];
 
 // Total number of cells in the pattern — used to scale thresholds so
 // small patterns (fast games) don't finish in a handful of draws.
@@ -172,7 +200,7 @@ $patternCellCount = max($patternCellCount, 1);
 $dangerThreshold = $patternCellCount - 1; // everything except "would complete"
 
 $cardsStmt = $pdo->prepare("
-    SELECT id, card_data
+    SELECT id, card_data, shared_number
     FROM user_cards
     WHERE game_id = ?
 ");
@@ -197,10 +225,15 @@ foreach ($cards as $card) {
     }
 
     $isActiveWinner = ($card['id'] == $activeWinner['cardId']);
+    $isCoWinner = $sharedNumber && (int) ($card['shared_number'] ?? 0) === $sharedNumber;
 
     if (count($missing) == 1 && !$isActiveWinner) {
-        // Would complete a non-winner on the next draw — never allow this number.
-        $blockedNumbers[] = $missing[0];
+        // Would complete a non-active card on the next draw — never allow this number.
+        if ($isCoWinner) {
+            $coWinnerBlocked[] = $missing[0];
+        } else {
+            $bystanderBlocked[] = $missing[0];
+        }
 
     } elseif (!$isActiveWinner && count($missing) >= 2 && count($missing) <= $dangerThreshold) {
         // Weight by closeness: cards nearer completion get more copies in
@@ -214,7 +247,8 @@ foreach ($cards as $card) {
 }
 
 $dangerPool = array_values(array_unique($dangerPool));
-$blockedNumbers = array_unique($blockedNumbers);
+$bystanderBlocked = array_values(array_unique($bystanderBlocked));
+$blockedNumbers = array_values(array_unique(array_merge($coWinnerBlocked, $bystanderBlocked)));
 
 $winnerNumbers = array_values(array_diff($winnerNumbers, $blockedNumbers));
 $neutralPool = array_values(array_diff($neutralPool, $blockedNumbers));
@@ -222,7 +256,7 @@ $dangerPool = array_values(array_diff($dangerPool, $blockedNumbers));
 $allAvailableNumbers = array_values(array_diff($allAvailableNumbers, $blockedNumbers));
 
 /* STUCK-STREAK TRACKING
-   If at least one non-winner card is sitting blocked at 1-away, count
+   If at least one bystander card is sitting blocked at 1-away, count
    consecutive draws that's been true. Past the threshold, stop dragging
    it out — bias hard toward finishing the actual winner instead of
    continuing to hold everyone at "so close". */
@@ -230,13 +264,18 @@ $allAvailableNumbers = array_values(array_diff($allAvailableNumbers, $blockedNum
 $stuckStreak = (int) ($game['stuck_streak'] ?? 0);
 $stuckStreakLimit = 8; // draws a block can persist before we speed up the real finish
 
-if (!empty($blockedNumbers)) {
+if (!empty($bystanderBlocked)) {
     $stuckStreak++;
 } else {
     $stuckStreak = 0;
 }
 
-$forceWinnerFinish = $stuckStreak >= $stuckStreakLimit && !empty($winnerNumbers);
+$sharedPending = $sharedNumber && !in_array($sharedNumber, $drawnNumbers, true);
+// The shared number is "safe" to draw only if it wouldn't complete a bystander.
+$sharedSafe = $sharedPending && !in_array($sharedNumber, $bystanderBlocked, true);
+
+$forceWinnerFinish = $stuckStreak >= $stuckStreakLimit
+    && (!empty($winnerRemainingRaw) || $sharedPending);
 
 /* DRAW PROBABILITY SYSTEM */
 
@@ -261,47 +300,57 @@ $winnerChance = min($baseChance + ($drawCount * $rampRate), $maxChance);
 // generate their own danger pool naturally, so they need less help.
 $dangerChance = (int) max(15, min(40, round(150 / $patternCellCount)));
 
+$number = null;
+
 if ($forceWinnerFinish) {
-    // Stop stalling — push straight toward completing the real winner.
-    $winnerChance = 100;
-}
 
-$roll = rand(1,100);
+    // Stop stalling — push straight toward completing the real winner,
+    // using only numbers that don't complete a bystander. The shared
+    // number goes last, and only when it is safe too.
+    $number = pickFirst($winnerNumbers, $sharedSafe ? [$sharedNumber] : []);
 
-if (!empty($winnerNumbers) && $roll <= $winnerChance) {
+} elseif ($sharedSafe && empty($winnerRemainingRaw)) {
 
-    $number = $winnerNumbers[array_rand($winnerNumbers)];
-
-} elseif ($roll <= ($winnerChance + $dangerChance)) {
-
-    if (!empty($dangerPool)) {
-        $number = $dangerPool[array_rand($dangerPool)];
-    } elseif (!empty($allAvailableNumbers)) {
-        $number = $allAvailableNumbers[array_rand($allAvailableNumbers)];
-    } else {
-        $number = $neutralPool[array_rand($neutralPool)];
-    }
+    // The active winner only needs the shared number now, and drawing it
+    // doesn't complete any bystander.
+    $number = $sharedNumber;
 
 } else {
 
-    if (!empty($neutralPool)) {
-        $number = $neutralPool[array_rand($neutralPool)];
-    } else {
-        $number = $allAvailableNumbers[array_rand($allAvailableNumbers)];
-    }
+    $roll = rand(1,100);
 
+    if (!empty($winnerNumbers) && $roll <= $winnerChance) {
+
+        $number = pickFirst($winnerNumbers);
+
+    } elseif ($roll <= ($winnerChance + $dangerChance)) {
+
+        $number = pickFirst($dangerPool, $allAvailableNumbers);
+
+    } else {
+
+        $number = pickFirst($neutralPool, $allAvailableNumbers);
+
+    }
 }
 
-// Shared number trigger (final number for the active winner)
-$sharedNumber = $activeWinner['sharedNumber'];
+/* LAST RESORT
+   Nothing "safe" was left to draw: either every remaining number would
+   complete a bystander, or the game has been forced to finish and the
+   active winner's last numbers overlap a bystander's pattern (they can't
+   be completed without completing that card too). Prefer the active
+   winner's numbers, then the shared number, then anything, so the game
+   can always move forward instead of erroring or stalling forever. */
+if ($number === null) {
+    $number = pickFirst(
+        $winnerRemainingRaw,
+        $sharedPending ? [$sharedNumber] : [],
+        $availableRaw
+    );
+}
 
-if ($sharedNumber && !in_array($sharedNumber, $drawnNumbers, true)) {
-
-    $remaining = array_diff($drawPool, $drawnNumbers, [$sharedNumber]);
-
-    if (empty($remaining) || $forceWinnerFinish) {
-        $number = $sharedNumber;
-    }
+if ($number === null) {
+    bail($pdo, 422, ['error' => 'No numbers left to draw.']);
 }
 
 if (!in_array($number, $drawnNumbers)) {

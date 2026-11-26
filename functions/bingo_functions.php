@@ -5,7 +5,7 @@
 
 function calculatePriorityWeight($wins, $department, $role) {
     $weight = 100;
-    $weight -= ($wins * 10); // more wins = lower priority
+    $weight -= ($wins * 100); // more wins = lower priority
     if (in_array(strtolower($role), ['priority'])) {
         $weight += 50;
     }

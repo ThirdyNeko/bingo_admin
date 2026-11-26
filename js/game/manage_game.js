@@ -44,6 +44,15 @@ document.addEventListener("DOMContentLoaded", function () {
     columns: [
       { data: "row_num", orderable: false, searchable: false, width: "50px" },
       { data: "name" },
+      {
+        data: "department",
+        orderable: false,
+        searchable: false,
+        render: function (data, type) {
+          if (type !== "display") return data;
+          return data ? data : '<span class="text-muted">—</span>';
+        },
+      },
       { data: "mode", orderable: false, searchable: false, width: "120px" },
       {
         data: "card_count",
@@ -66,6 +75,55 @@ document.addEventListener("DOMContentLoaded", function () {
             );
           }
           return label;
+        },
+      },
+      {
+        // Restriction: wins > 0 means restricted (odds of winning lowered).
+        // Restrict = wins + 1, Unrestrict = wins reset to 0.
+        // Only editable before the game starts.
+        // Requires "wins" and "id" (user id) in game_players_list.php rows.
+        data: "wins",
+        orderable: false,
+        searchable: false,
+        width: "180px",
+        render: function (data, type, row) {
+          if (type !== "display") return data;
+
+          const wins = parseInt(data, 10) || 0;
+          const restricted = wins > 0;
+
+          if (gameStarted) {
+            return restricted
+              ? '<span class="badge bg-warning text-dark">Restricted</span>'
+              : '<span class="text-muted">—</span>';
+          }
+
+          const action = restricted ? "unrestrict" : "restrict";
+          const btnClass = restricted
+            ? "btn-outline-success"
+            : "btn-outline-warning";
+          const label = restricted ? "Unrestrict" : "Restrict";
+          const badge = restricted
+            ? '<span class="badge bg-warning text-dark me-2">Restricted</span>'
+            : "";
+
+          return (
+            badge +
+            '<form method="POST" action="manage_game.php?game_id=' +
+            encodeURIComponent(gameId) +
+            '" class="d-inline">' +
+            '<input type="hidden" name="user_id" value="' +
+            row.id +
+            '">' +
+            '<button type="submit" name="set_restriction" value="' +
+            action +
+            '" class="btn btn-sm ' +
+            btnClass +
+            '">' +
+            label +
+            "</button>" +
+            "</form>"
+          );
         },
       },
     ],

@@ -44,7 +44,62 @@ $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' :
 $host   = $_SERVER['HTTP_HOST']; // e.g. "10.10.25.25" or "10.10.25.25:8080"
 
 $registerUrl = "$scheme://$host/bingo/index.php?game_code=" . urlencode($game['game_code']);
-$qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" . urlencode($registerUrl);
+
+// ==========================================
+// QR CODE — cached as a local JPEG
+// The QR is fetched from api.qrserver.com ONCE (server-side), saved as
+// qr/qr_<hash>.jpg, and served from this server from then on. That way a
+// screen reload doesn't re-request it from the internet (no flicker, and
+// no dependency on the players' / screen's internet access).
+// The filename hash includes the full register URL, so a different game
+// code or host automatically gets its own file.
+// If the fetch or the save fails, it falls back to the remote URL.
+// ==========================================
+$qrRemoteUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&format=jpg&data=" . urlencode($registerUrl);
+
+$qrDirFs   = __DIR__ . '/qr';
+$qrFile    = 'qr_' . md5($registerUrl) . '.jpg';
+$qrPathFs  = $qrDirFs . '/' . $qrFile;
+$qrUrl     = 'qr/' . $qrFile;
+
+if (!is_file($qrPathFs)) {
+    $jpegData = false;
+
+    if (function_exists('curl_init')) {
+        $ch = curl_init($qrRemoteUrl);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_CONNECTTIMEOUT => 4,
+            CURLOPT_TIMEOUT        => 8,
+        ]);
+        $jpegData = curl_exec($ch);
+        curl_close($ch);
+    } else {
+        $ctx = stream_context_create(['http' => ['timeout' => 8]]);
+        $jpegData = @file_get_contents($qrRemoteUrl, false, $ctx);
+    }
+
+    // Only keep it if it's really a JPEG (starts with FF D8).
+    if (is_string($jpegData) && strlen($jpegData) > 100 && substr($jpegData, 0, 2) === "\xFF\xD8") {
+        if (!is_dir($qrDirFs)) {
+            @mkdir($qrDirFs, 0775, true);
+        }
+
+        $tmpPath = $qrPathFs . '.' . uniqid('', true) . '.tmp';
+        if (@file_put_contents($tmpPath, $jpegData) !== false) {
+            @rename($tmpPath, $qrPathFs);
+            if (is_file($tmpPath)) {
+                @unlink($tmpPath); // another request saved it first
+            }
+        }
+    }
+
+    // Couldn't cache it — fall back to the remote image.
+    if (!is_file($qrPathFs)) {
+        $qrUrl = $qrRemoteUrl;
+    }
+}
 
 $started = (int)$game['started'] === 1;
 
@@ -120,7 +175,7 @@ if ($prize && $prize['picture'] !== null) {
             <div class="card bg-dark text-white border-0 shadow-lg" style="max-width:350px;">
                 <div class="card-body text-center">
                     <h5 class="mb-3">Scan to Join</h5>
-                    <img src="<?= $qrUrl ?>" class="img-fluid">
+                    <img src="<?= htmlspecialchars($qrUrl) ?>" width="300" height="300" class="img-fluid" alt="Scan to join">
                 </div>
             </div>
 
@@ -158,7 +213,7 @@ if ($prize && $prize['picture'] !== null) {
                             <?= htmlspecialchars($game['game_code']) ?>
                         </div>
 
-                        <img src="<?= $qrUrl ?>" class="img-fluid mb-2" style="max-width:150px;">
+                        <img src="<?= htmlspecialchars($qrUrl) ?>" width="150" height="150" class="img-fluid mb-2" style="max-width:150px;" alt="Rejoin QR">
 
                         <p class="small text-muted mb-0">
                             Scan if disconnected

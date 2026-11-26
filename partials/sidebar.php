@@ -91,40 +91,4 @@
   </div>
 </div>
 
-<!-- JS -->
-<script>
-document.querySelectorAll('.toggle-password').forEach(span => {
-    span.addEventListener('click', () => {
-        const target = document.getElementById(span.dataset.target);
-        const icon = span.querySelector('i');
-        if (target.type === 'password') {
-            target.type = 'text';
-            icon.classList.replace('bi-eye-slash', 'bi-eye');
-        } else {
-            target.type = 'password';
-            icon.classList.replace('bi-eye', 'bi-eye-slash');
-        }
-    });
-});
-
-// AJAX form submission
-document.getElementById('changePasswordForm').addEventListener('submit', function(e){
-    e.preventDefault();
-    const formData = new FormData(this);
-    const submitBtn = this.querySelector('button[type="submit"]');
-    submitBtn.disabled = true;
-
-    fetch('auth/change_password.php', { method: 'POST', body: formData })
-    .then(res => res.json())
-    .then(data => {
-        const alertDiv = document.getElementById('passwordAlert');
-        alertDiv.innerHTML = `<div class="alert alert-${data.status}" role="alert">${data.message}</div>`;
-        if(data.status === 'success') this.reset();
-
-        // auto-hide alert after 5 seconds
-        setTimeout(() => alertDiv.innerHTML = '', 5000);
-    })
-    .catch(err => console.error(err))
-    .finally(() => submitBtn.disabled = false);
-});
-</script>
+<script src="js/partials/sidebar.js"></script>

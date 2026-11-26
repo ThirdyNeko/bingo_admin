@@ -1,0 +1,28 @@
+/* Admin panel layout (loaded by partials/header.php) */
+
+body {
+    background: #f4f6f9;
+}
+
+.sidebar {
+    min-height: 100vh;
+    background: #1a1a1a;
+    color: white;
+}
+
+.sidebar a {
+    color: #bbb;
+    text-decoration: none;
+    display: block;
+    padding: 12px 15px;
+}
+
+.sidebar a:hover {
+    background: #333;
+    color: #fff;
+}
+
+.active-link {
+    background: #0d6efd;
+    color: white !important;
+}

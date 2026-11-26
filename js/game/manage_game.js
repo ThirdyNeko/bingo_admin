@@ -186,4 +186,54 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Check every 3 seconds
   setInterval(checkForNewPlayers, 3000);
+
+  // ============================================================
+  // AUTO-START COUNTDOWN
+  // Only for games that haven't started and use start_mode === "timer".
+  // Values come from data-* attributes on #manage-game-root.
+  // ============================================================
+  const startMode = root.dataset.startMode;
+  const scheduledStartRaw = root.dataset.scheduledStart;
+  const countdownEl = document.getElementById("countdown");
+
+  if (!gameStarted && startMode === "timer" && scheduledStartRaw) {
+    const scheduledStart = new Date(scheduledStartRaw).getTime();
+
+    const tick = setInterval(() => {
+      const diff = scheduledStart - Date.now();
+
+      if (diff <= 0) {
+        clearInterval(tick);
+        if (countdownEl) countdownEl.textContent = "starting…";
+
+        fetch("functions/start_game.php", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: "game_id=" + encodeURIComponent(gameId),
+        }).then(() => location.reload());
+        return;
+      }
+
+      const m = Math.floor(diff / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      if (countdownEl) countdownEl.textContent = `${m}m ${s}s remaining`;
+    }, 1000);
+  }
+
+  // ============================================================
+  // DRAW MODE FORM: hide the interval box when "Manual" is selected
+  // ============================================================
+  const drawModeAuto = document.getElementById("drawModeAuto");
+  const drawModeManual = document.getElementById("drawModeManual");
+
+  function toggleDrawIntervalWrap() {
+    const wrap = document.getElementById("drawIntervalWrap");
+    if (!wrap || !drawModeAuto) return;
+    wrap.style.display = drawModeAuto.checked ? "" : "none";
+  }
+
+  if (drawModeAuto)
+    drawModeAuto.addEventListener("change", toggleDrawIntervalWrap);
+  if (drawModeManual)
+    drawModeManual.addEventListener("change", toggleDrawIntervalWrap);
 });

@@ -124,7 +124,9 @@ include 'partials/sidebar.php';
      data-player-count="<?= $playerCount ?>"
      data-game-started="<?= $game['started'] ? '1' : '0' ?>"
      data-draw-mode="<?= htmlspecialchars($drawMode) ?>"
-     data-draw-interval-seconds="<?= $drawIntervalSeconds ?>">
+     data-draw-interval-seconds="<?= $drawIntervalSeconds ?>"
+     data-start-mode="<?= htmlspecialchars($game['start_mode'] ?? 'manual') ?>"
+     data-scheduled-start="<?= $game['scheduled_start'] ? date('c', strtotime($game['scheduled_start'])) : '' ?>">
 
     <h3 class="mb-4">Manage Game</h3>
 
@@ -285,46 +287,6 @@ include 'partials/sidebar.php';
 <link rel="stylesheet" href="css/datatables.min.css">
 <script src="js/jquery-4.0.0.min.js"></script>
 <script src="js/datatables.min.js"></script>
-
-<?php if (!$game['started'] && $game['start_mode'] === 'timer' && $game['scheduled_start']): ?>
-<script>
-(function () {
-    const scheduledStart = new Date("<?= date('c', strtotime($game['scheduled_start'])) ?>").getTime();
-    const countdownEl = document.getElementById('countdown');
-    const gameId = <?= $gameId ?>;
-
-    const tick = setInterval(() => {
-        const diff = scheduledStart - Date.now();
-
-        if (diff <= 0) {
-            clearInterval(tick);
-            if (countdownEl) countdownEl.textContent = "starting…";
-
-            fetch('functions/start_game.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'game_id=' + encodeURIComponent(gameId)
-            }).then(() => location.reload());
-            return;
-        }
-
-        const m = Math.floor(diff / 60000);
-        const s = Math.floor((diff % 60000) / 1000);
-        if (countdownEl) countdownEl.textContent = `${m}m ${s}s remaining`;
-    }, 1000);
-})();
-</script>
-<?php endif; ?>
-
-<script>
-document.getElementById('drawModeAuto')?.addEventListener('change', toggleDrawIntervalWrap);
-document.getElementById('drawModeManual')?.addEventListener('change', toggleDrawIntervalWrap);
-function toggleDrawIntervalWrap() {
-    const wrap = document.getElementById('drawIntervalWrap');
-    if (!wrap) return;
-    wrap.style.display = document.getElementById('drawModeAuto').checked ? '' : 'none';
-}
-</script>
 
 <script src="js/game/manage_game.js"></script>
 </body>

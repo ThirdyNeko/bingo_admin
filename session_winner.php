@@ -73,53 +73,10 @@ foreach ($games as $game) {
     <title>Session Winners</title>
     <link href="css/bootstrap.min.css" rel="stylesheet">
     <link href="css/winner.css" rel="stylesheet">
+    <link href="css/winner_pages.css" rel="stylesheet">
     <script src="sweetalert/dist/sweetalert2.all.min.js"></script>
-
-    <style>
-        body {
-            background: #111;
-            color: white;
-        }
-        .round-label {
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            font-size: 0.85rem;
-        }
-        .winner-list {
-            list-style: none;
-            padding: 0;
-            margin: 0 auto 2rem;
-            max-width: 600px;
-        }
-        .winner-list li {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 1rem;
-            padding: 14px 20px;
-            margin-bottom: 10px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-            text-align: left;
-        }
-        .winner-list .rank {
-            font-size: 1.2rem;
-            font-weight: bold;
-            min-width: 70px;
-        }
-        .winner-list .name {
-            flex: 1;
-            font-size: 1.1rem;
-        }
-        .winner-list .prize {
-            font-weight: bold;
-            color: #ffc107;
-            text-align: right;
-        }
-    </style>
 </head>
-<body>
+<body data-complete-title="Session Complete!">
 
 <div class="container py-5 text-center">
 
@@ -176,15 +133,7 @@ foreach ($games as $game) {
 
 </div>
 
-<script>
-Swal.fire({
-    icon: 'success',
-    title: 'Session Complete!',
-    text: 'Congratulations to all winners!',
-    timer: 2500,
-    showConfirmButton: false
-});
-</script>
+<script src="js/winners/winner_complete.js"></script>
 
 </body>
 </html>

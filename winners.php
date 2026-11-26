@@ -1,5 +1,6 @@
 <?php
 require_once 'config/db.php';
+require_once 'includes/qr_cache.php';
 
 if (!isset($_GET['game_id'])) {
     die("Game not found.");
@@ -34,6 +35,11 @@ $winners = $winnersStmt->fetchAll(PDO::FETCH_ASSOC);
 
 $totalDrawn = count(json_decode($game['drawn_numbers'] ?? '[]', true));
 
+// All winners claimed — the game is over, so remove its cached join/rejoin QR image.
+if ((int) $game['winners'] > 0 && count($winners) >= (int) $game['winners']) {
+    qrCacheDeleteForGame($game['game_code']);
+}
+
 /* ==============================
    GET GAME PRIZE (photo + name)
 ============================== */
@@ -58,16 +64,10 @@ if ($prize && $prize['picture'] !== null) {
     <title>Game Winners</title>
     <link href="css/bootstrap.min.css" rel="stylesheet">
     <link href="css/winner.css" rel="stylesheet">
+    <link href="css/winner_pages.css" rel="stylesheet">
     <script src="sweetalert/dist/sweetalert2.all.min.js"></script>
-
-    <style>
-        body {
-            background: #111;
-            color: white;
-        }
-    </style>
 </head>
-<body>
+<body data-complete-title="Game Complete!">
 
 <div class="container py-5 text-center">
 
@@ -137,15 +137,7 @@ if ($prize && $prize['picture'] !== null) {
 
 </div>
 
-<script>
-Swal.fire({
-    icon: 'success',
-    title: 'Game Complete!',
-    text: 'Congratulations to all winners!',
-    timer: 2500,
-    showConfirmButton: false
-});
-</script>
+<script src="js/winners/winner_complete.js"></script>
 
 </body>
 </html>

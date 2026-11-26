@@ -1,0 +1,52 @@
+/* Shared styles for winners.php (game winners) and session_winner.php (session winners).
+   Load AFTER css/winner.css so these rules take precedence. */
+
+body {
+    background: #111;
+    color: white;
+}
+
+/* ----- Session winners (session_winner.php) ----- */
+
+.round-label {
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+}
+
+.winner-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 auto 2rem;
+    max-width: 600px;
+}
+
+.winner-list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 14px 20px;
+    margin-bottom: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    text-align: left;
+}
+
+.winner-list .rank {
+    font-size: 1.2rem;
+    font-weight: bold;
+    min-width: 70px;
+}
+
+.winner-list .name {
+    flex: 1;
+    font-size: 1.1rem;
+}
+
+.winner-list .prize {
+    font-weight: bold;
+    color: #ffc107;
+    text-align: right;
+}

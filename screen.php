@@ -1,5 +1,6 @@
 <?php
 require_once 'config/db.php';
+require_once 'includes/qr_cache.php';
 
 if (!isset($_GET['game_id'])) {
     die("Game not found.");
@@ -24,6 +25,7 @@ $claimedStmt->execute([$gameId]);
 $claimedCount = (int) $claimedStmt->fetchColumn();
 
 $totalWinners = (int) $game['winners'];
+$gameFinished = $totalWinners > 0 && $claimedCount >= $totalWinners;
 
 $winnersStmt = $pdo->prepare("
     SELECT u.name
@@ -48,21 +50,32 @@ $registerUrl = "$scheme://$host/bingo/index.php?game_code=" . urlencode($game['g
 // ==========================================
 // QR CODE — cached as a local JPEG
 // The QR is fetched from api.qrserver.com ONCE (server-side), saved as
-// qr/qr_<hash>.jpg, and served from this server from then on. That way a
+// qr/qr_<GAMECODE>_<hash>.jpg, and served from this server from then on. That way a
 // screen reload doesn't re-request it from the internet (no flicker, and
 // no dependency on the players' / screen's internet access).
 // The filename hash includes the full register URL, so a different game
 // code or host automatically gets its own file.
 // If the fetch or the save fails, it falls back to the remote URL.
+// The file is deleted once the game is finished, and anything older than a
+// day is swept away (see includes/qr_cache.php).
 // ==========================================
 $qrRemoteUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&format=jpg&data=" . urlencode($registerUrl);
 
-$qrDirFs   = __DIR__ . '/qr';
-$qrFile    = 'qr_' . md5($registerUrl) . '.jpg';
+$qrDirFs   = qrCacheDir();
+$qrFile    = qrCacheFileName($game['game_code'], $registerUrl);
 $qrPathFs  = $qrDirFs . '/' . $qrFile;
 $qrUrl     = 'qr/' . $qrFile;
 
-if (!is_file($qrPathFs)) {
+// Housekeeping: remove QR images from old / abandoned games.
+qrCacheSweep(86400);
+
+if ($gameFinished) {
+
+    // The game is over — the join / rejoin QR isn't needed any more.
+    qrCacheDeleteForGame($game['game_code']);
+    $qrUrl = '';
+
+} elseif (!is_file($qrPathFs)) {
     $jpegData = false;
 
     if (function_exists('curl_init')) {
@@ -175,7 +188,9 @@ if ($prize && $prize['picture'] !== null) {
             <div class="card bg-dark text-white border-0 shadow-lg" style="max-width:350px;">
                 <div class="card-body text-center">
                     <h5 class="mb-3">Scan to Join</h5>
+                    <?php if ($qrUrl): ?>
                     <img src="<?= htmlspecialchars($qrUrl) ?>" width="300" height="300" class="img-fluid" alt="Scan to join">
+                    <?php endif; ?>
                 </div>
             </div>
 
@@ -213,7 +228,9 @@ if ($prize && $prize['picture'] !== null) {
                             <?= htmlspecialchars($game['game_code']) ?>
                         </div>
 
+                        <?php if ($qrUrl): ?>
                         <img src="<?= htmlspecialchars($qrUrl) ?>" width="150" height="150" class="img-fluid mb-2" style="max-width:150px;" alt="Rejoin QR">
+                        <?php endif; ?>
 
                         <p class="small text-muted mb-0">
                             Scan if disconnected

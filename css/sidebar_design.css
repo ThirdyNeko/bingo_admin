@@ -1,0 +1,372 @@
+/* =========================================================
+   BINGO ADMIN SIDEBAR
+   ========================================================= */
+
+.bingo-sidebar {
+    --sidebar-bg: #111827;
+    --sidebar-text: #cbd5e1;
+    --sidebar-muted: #8290a5;
+    --sidebar-accent: #6366f1;
+
+    width: 250px;
+    min-width: 250px;
+    min-height: 100vh;
+    height: 100vh;
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 24px 16px;
+    background: var(--sidebar-bg);
+    color: var(--sidebar-text);
+    overflow-y: auto;
+    box-sizing: border-box;
+    font-family: inherit;
+}
+
+/* Brand */
+
+.sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 5px 8px 18px;
+}
+
+.brand-icon {
+    width: 43px;
+    height: 43px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    border-radius: 12px;
+    font-size: 20px;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.25);
+}
+
+.brand-text h4 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: #fff;
+}
+
+.brand-text span {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--sidebar-muted);
+    margin-top: 2px;
+}
+
+/* Dividers and labels */
+
+.sidebar-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.08);
+    margin: 12px 4px;
+}
+
+.sidebar-section-label {
+    padding: 8px 12px;
+    color: var(--sidebar-muted);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+}
+
+/* Navigation */
+
+.sidebar-navigation {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    color: var(--sidebar-text);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.sidebar-link i {
+    font-size: 18px;
+    width: 22px;
+    text-align: center;
+    color: #94a3b8;
+    transition: all 0.2s ease;
+}
+
+.sidebar-link:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+    transform: translateX(2px);
+}
+
+.sidebar-link:hover i {
+    color: #fff;
+}
+
+.sidebar-link.active {
+    background: rgba(99, 102, 241, 0.16);
+    color: #a5b4fc;
+    font-weight: 600;
+}
+
+.sidebar-link.active i {
+    color: #a5b4fc;
+}
+
+.sidebar-link.active::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 25%;
+    height: 50%;
+    width: 3px;
+    background: #818cf8;
+    border-radius: 0 5px 5px 0;
+}
+
+.sidebar-logout {
+    color: #fca5a5;
+}
+
+.sidebar-logout i {
+    color: #f87171;
+}
+
+.sidebar-logout:hover {
+    background: rgba(239, 68, 68, 0.10);
+    color: #fca5a5;
+}
+
+/* Footer */
+
+.sidebar-footer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: auto;
+    padding: 14px 10px 5px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-footer-icon {
+    font-size: 30px;
+    color: #818cf8;
+}
+
+.sidebar-footer-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-footer-text strong {
+    color: #f1f5f9;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.sidebar-footer-text small {
+    color: var(--sidebar-muted);
+    font-size: 11px;
+    text-transform: capitalize;
+}
+
+/* =========================================================
+   CHANGE PASSWORD MODAL
+   ========================================================= */
+
+.password-modal .modal-content {
+    border: none;
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 25px 70px rgba(0, 0, 0, 0.15);
+}
+
+.password-modal .modal-header {
+    padding: 22px 24px;
+    border-bottom: 1px solid #f1f5f9;
+    background: #fff;
+}
+
+.password-modal-heading {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.password-modal-icon {
+    width: 45px;
+    height: 45px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #eef2ff;
+    color: #6366f1;
+    font-size: 20px;
+}
+
+.password-modal-heading h5 {
+    margin: 0;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.password-modal-heading small {
+    display: block;
+    margin-top: 4px;
+    color: #64748b;
+    font-size: 12px;
+}
+
+.password-modal .modal-body {
+    padding: 24px;
+}
+
+.password-field {
+    margin-bottom: 18px;
+}
+
+.password-field label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 8px;
+}
+
+.password-input-wrapper {
+    position: relative;
+}
+
+.password-input-wrapper .form-control {
+    height: 46px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    padding: 10px 45px 10px 13px;
+    font-size: 14px;
+    box-shadow: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.password-input-wrapper .form-control:focus {
+    border-color: #818cf8;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.10);
+}
+
+.password-input-wrapper .form-control::placeholder {
+    color: #94a3b8;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    padding: 5px;
+    color: #64748b;
+    cursor: pointer;
+    font-size: 17px;
+}
+
+.password-toggle:hover {
+    color: #6366f1;
+}
+
+.password-hint {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    background: #f8fafc;
+    padding: 12px;
+    border-radius: 10px;
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.password-hint i {
+    color: #6366f1;
+    margin-top: 1px;
+}
+
+.password-modal .modal-footer {
+    padding: 16px 24px 22px;
+    border-top: 1px solid #f1f5f9;
+}
+
+.password-cancel {
+    border: 1px solid #e2e8f0;
+    color: #475569;
+    background: #fff;
+    border-radius: 10px;
+    padding: 9px 18px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.password-cancel:hover {
+    background: #f8fafc;
+}
+
+.password-submit {
+    background: #6366f1;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 9px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    transition: 0.2s;
+}
+
+.password-submit:hover {
+    background: #4f46e5;
+    color: #fff;
+}
+
+.password-submit:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 768px) {
+
+    .bingo-sidebar {
+        width: 100%;
+        min-width: 100%;
+        height: auto;
+        min-height: auto;
+        position: relative;
+        padding: 16px;
+    }
+
+    .sidebar-brand {
+        padding-bottom: 10px;
+    }
+
+    .sidebar-footer {
+        margin-top: 20px;
+    }
+
+}

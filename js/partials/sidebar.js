@@ -1,60 +1,123 @@
-// Sidebar: show/hide password toggles + Change Password modal (AJAX).
-// Loaded by partials/sidebar.php.
+// =========================================================
+// BINGO SIDEBAR
+// Password toggles + AJAX password change
+// =========================================================
 
 document.addEventListener("DOMContentLoaded", function () {
-  // ----- Show / hide password -----
-  document.querySelectorAll(".toggle-password").forEach(function (span) {
-    span.addEventListener("click", function () {
-      const target = document.getElementById(span.dataset.target);
-      const icon = span.querySelector("i");
+  // ----- Password visibility toggles -----
+  document.querySelectorAll(".toggle-password").forEach(function (button) {
+    button.addEventListener("click", function () {
+      const target = document.getElementById(button.dataset.target);
+      const icon = button.querySelector("i");
+
       if (!target || !icon) return;
 
-      if (target.type === "password") {
-        target.type = "text";
-        icon.classList.replace("bi-eye-slash", "bi-eye");
-      } else {
-        target.type = "password";
-        icon.classList.replace("bi-eye", "bi-eye-slash");
-      }
+      const isPassword = target.type === "password";
+
+      target.type = isPassword ? "text" : "password";
+
+      icon.classList.toggle("bi-eye", isPassword);
+      icon.classList.toggle("bi-eye-slash", !isPassword);
     });
   });
 
-  // ----- AJAX form submission -----
-  const changePasswordForm = document.getElementById("changePasswordForm");
-  if (!changePasswordForm) return;
+  // ----- Change Password AJAX -----
+  const form = document.getElementById("changePasswordForm");
 
-  changePasswordForm.addEventListener("submit", function (e) {
+  if (!form) return;
+
+  form.addEventListener("submit", function (e) {
     e.preventDefault();
 
-    const formData = new FormData(changePasswordForm);
-    const submitBtn = changePasswordForm.querySelector('button[type="submit"]');
-    submitBtn.disabled = true;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const alertDiv = document.getElementById("passwordAlert");
 
-    fetch("auth/change_password.php", { method: "POST", body: formData })
+    if (!submitBtn || !alertDiv) return;
+
+    const originalButtonHTML = submitBtn.innerHTML;
+
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = `
+            <span class="spinner-border spinner-border-sm me-2"
+                  role="status" aria-hidden="true"></span>
+            Updating...
+        `;
+
+    alertDiv.innerHTML = "";
+
+    fetch("auth/change_password.php", {
+      method: "POST",
+      body: new FormData(form),
+    })
       .then(function (res) {
+        if (!res.ok) {
+          throw new Error("Server returned an error.");
+        }
+
         return res.json();
       })
+
       .then(function (data) {
-        const alertDiv = document.getElementById("passwordAlert");
-        alertDiv.innerHTML =
-          '<div class="alert alert-' +
-          data.status +
-          '" role="alert">' +
-          data.message +
-          "</div>";
+        alertDiv.innerHTML = "";
 
-        if (data.status === "success") changePasswordForm.reset();
+        const alert = document.createElement("div");
 
-        // auto-hide alert after 5 seconds
-        setTimeout(function () {
-          alertDiv.innerHTML = "";
-        }, 5000);
+        alert.className =
+          "alert alert-" +
+          (data.status === "success" ? "success" : "danger") +
+          " alert-dismissible fade show";
+
+        alert.setAttribute("role", "alert");
+
+        alert.textContent = data.message || "Something went wrong.";
+
+        const closeButton = document.createElement("button");
+
+        closeButton.type = "button";
+        closeButton.className = "btn-close";
+        closeButton.setAttribute("data-bs-dismiss", "alert");
+        closeButton.setAttribute("aria-label", "Close");
+
+        alert.appendChild(closeButton);
+        alertDiv.appendChild(alert);
+
+        if (data.status === "success") {
+          form.reset();
+
+          // Reset password visibility icons
+          document
+            .querySelectorAll(".toggle-password")
+            .forEach(function (button) {
+              const target = document.getElementById(button.dataset.target);
+              const icon = button.querySelector("i");
+
+              if (target) target.type = "password";
+
+              if (icon) {
+                icon.classList.remove("bi-eye");
+                icon.classList.add("bi-eye-slash");
+              }
+            });
+        }
       })
+
       .catch(function (err) {
-        console.error(err);
+        console.error("Change password error:", err);
+
+        alertDiv.innerHTML = "";
+
+        const alert = document.createElement("div");
+
+        alert.className = "alert alert-danger";
+        alert.setAttribute("role", "alert");
+        alert.textContent = "Unable to process your request. Please try again.";
+
+        alertDiv.appendChild(alert);
       })
+
       .finally(function () {
         submitBtn.disabled = false;
+        submitBtn.innerHTML = originalButtonHTML;
       });
   });
 });

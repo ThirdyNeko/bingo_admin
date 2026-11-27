@@ -2,51 +2,67 @@
 
 require_once 'config/db.php';
 
+$pageStyles = [
+    'css/datatables.min.css',
+    'css/player_settings.css',
+];
+
 include 'partials/header.php';
 include 'partials/sidebar.php';
 
 ?>
 
-<div class="col-md-10 p-4">
+<div class="col-md-10 manage-games-content p-4">
 
-    <h3 class="mb-4">Player Settings</h3>
+    <!-- PAGE HEADER -->
+    <div class="mg-page-header">
+        <div>
+            <span class="mg-eyebrow">SETTINGS</span>
+            <h2>Player Settings</h2>
+            <p>Choose auto or manual mode and set the number of cards for each player.</p>
+        </div>
+    </div>
 
     <div id="settingsAlert"></div>
 
-    <div class="card shadow-sm">
+    <!-- PLAYERS CARD -->
+    <div class="mg-card">
 
-        <div class="card-header">
-            <strong>Players</strong>
+        <div class="mg-card-header">
+            <div class="mg-card-title">
+                <div class="mg-icon"><i class="bi bi-people"></i></div>
+                <div>
+                    <h5>Players</h5>
+                    <span>Changes are saved as soon as you edit a row</span>
+                </div>
+            </div>
         </div>
 
-        <div class="card-body table-responsive">
+        <div class="mg-card-body">
+            <div class="mg-table-wrap">
 
-            <table
-                id="usersTable"
-                class="table table-striped table-bordered w-100"
-            >
+                <table id="usersTable" class="table align-middle w-100">
 
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Mode</th>
-                        <th>Cards</th>
-                    </tr>
-                </thead>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Mode</th>
+                            <th>Cards</th>
+                        </tr>
+                    </thead>
 
-                <tbody>
-                    <!-- Loaded through DataTables -->
-                </tbody>
+                    <tbody>
+                        <!-- Loaded through DataTables -->
+                    </tbody>
 
-            </table>
+                </table>
 
+            </div>
         </div>
 
     </div>
 
 </div>
-
-<link rel="stylesheet" href="css/datatables.min.css">
 
 <script src="js/jquery-4.0.0.min.js"></script>
 <script src="js/datatables.min.js"></script>

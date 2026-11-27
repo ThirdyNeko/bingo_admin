@@ -1,0 +1,312 @@
+/* =========================================================
+   PLAYER SETTINGS (player_settings.php only)
+   Matches Manage Game(s) design.
+   Needs the DataTables 2 control styles (div.dt-container ...)
+   from datatables.min.css for search, length and pagination.
+   ========================================================= */
+
+/* PAGE */
+.manage-games-content {
+    background: #f5f7fb;
+    min-height: calc(100vh - 70px);
+}
+
+.mg-page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+}
+
+.mg-eyebrow {
+    display: inline-block;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    margin-bottom: 8px;
+}
+
+.mg-page-header h2 {
+    font-size: 27px;
+    font-weight: 750;
+    color: #172033;
+    margin: 0;
+}
+
+.mg-page-header p {
+    margin: 8px 0 0;
+    color: #8a94a6;
+    font-size: 14px;
+}
+
+/* CARD */
+.mg-card {
+    background: #ffffff;
+    border: 1px solid #e9edf4;
+    border-radius: 16px;
+    box-shadow: 0 4px 18px rgba(15, 23, 42, 0.035);
+    overflow: hidden;
+}
+
+.mg-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 22px 24px;
+    border-bottom: 1px solid #edf0f5;
+}
+
+.mg-card-title {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.mg-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    background: #eef2ff;
+    color: #4f46e5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 21px;
+    flex-shrink: 0;
+}
+
+.mg-card-title h5 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: #172033;
+}
+
+.mg-card-title span {
+    display: block;
+    margin-top: 5px;
+    color: #929bad;
+    font-size: 12px;
+}
+
+.mg-card-body {
+    padding: 24px;
+}
+
+.mg-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+}
+
+/* ALERTS (#settingsAlert is filled by settings.js) */
+#settingsAlert .alert {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    margin-bottom: 22px;
+    border-radius: 12px;
+    font-size: 14px;
+    border-width: 1px;
+}
+
+#settingsAlert .alert-success {
+    background: #ecfdf5;
+    border-color: #d1fae5;
+    color: #047857;
+}
+
+#settingsAlert .alert-danger {
+    background: #fff1f2;
+    border-color: #fecdd3;
+    color: #be123c;
+}
+
+#settingsAlert .alert .btn-close {
+    position: static;
+    margin-left: auto;
+    padding: 4px;
+    font-size: 11px;
+    box-shadow: none;
+}
+
+/* TABLE */
+#usersTable {
+    border-collapse: separate !important;
+    border-spacing: 0;
+    width: 100% !important;
+    --bs-table-bg: transparent;
+}
+
+#usersTable > :not(caption) > * > * {
+    box-shadow: none;
+}
+
+#usersTable thead th {
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    padding: 15px 16px;
+    border-bottom: 1px solid #e9edf4 !important;
+    border-top: none !important;
+    white-space: nowrap;
+}
+
+#usersTable tbody td {
+    padding: 14px 16px;
+    vertical-align: middle;
+    border-bottom: 1px solid #f0f2f6 !important;
+    color: #475569;
+    font-size: 13px;
+    background: #ffffff;
+}
+
+#usersTable tbody tr {
+    transition: background 0.15s ease;
+}
+
+#usersTable tbody tr:hover td {
+    background: #fafbff;
+    box-shadow: none !important;
+}
+
+#usersTable tbody tr:last-child td {
+    border-bottom: none !important;
+}
+
+/* Player name */
+#usersTable tbody td:first-child {
+    color: #172033;
+    font-weight: 600;
+}
+
+/* Sortable headers (ordering is on for this table) */
+#usersTable thead th div.dt-column-header {
+    align-items: center;
+    gap: 6px;
+}
+
+#usersTable thead th .dt-column-order {
+    color: #94a3b8;
+}
+
+#usersTable thead th.dt-orderable-asc:hover,
+#usersTable thead th.dt-orderable-desc:hover {
+    outline: none;
+    background: #f1f5f9;
+}
+
+#usersTable thead th.dt-ordering-asc,
+#usersTable thead th.dt-ordering-desc {
+    color: #4f46e5;
+}
+
+/* Keep columns left-aligned (DT2 right-aligns numeric columns) */
+#usersTable th.dt-type-numeric,
+#usersTable td.dt-type-numeric {
+    text-align: left;
+}
+
+#usersTable th.dt-type-numeric div.dt-column-header {
+    flex-direction: row;
+}
+
+#usersTable td.dt-empty {
+    padding: 32px 16px;
+    color: #94a3b8;
+    text-align: center;
+}
+
+/* AUTO / MANUAL SWITCH (.player-auto-mode) */
+#usersTable .form-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    padding-left: 0;
+    min-height: 0;
+}
+
+#usersTable .form-switch .form-check-input {
+    float: none;
+    margin: 0;
+    width: 2.4em;
+    height: 1.3em;
+    cursor: pointer;
+    border-color: #cbd5e1;
+    background-color: #e2e8f0;
+    box-shadow: none;
+}
+
+#usersTable .form-check-input.player-auto-mode:checked {
+    background-color: #4f46e5;
+    border-color: #4f46e5;
+}
+
+#usersTable .form-check-input.player-auto-mode:focus {
+    border-color: #818cf8;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+#usersTable .form-check-input.player-auto-mode:disabled {
+    opacity: 0.5;
+    cursor: wait;
+}
+
+#usersTable .form-check-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+}
+
+/* CARD COUNT INPUT (.player-card-count) */
+#usersTable .player-card-count {
+    width: 90px;
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+    border-radius: 9px;
+    padding: 8px 12px;
+    font-size: 13px;
+    color: #334155;
+    outline: none;
+    box-shadow: none;
+    transition: 0.2s;
+}
+
+#usersTable .player-card-count:focus {
+    border-color: #818cf8;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+#usersTable .player-card-count:disabled {
+    background: #f8fafc;
+    color: #94a3b8;
+    cursor: wait;
+}
+
+/* RESPONSIVE */
+@media (max-width: 991px) {
+    .mg-card-body,
+    .mg-card-header {
+        padding: 18px;
+    }
+}
+
+@media (max-width: 768px) {
+    .manage-games-content {
+        padding: 18px !important;
+    }
+
+    .mg-page-header h2 {
+        font-size: 23px;
+    }
+
+    .mg-card-body {
+        padding: 15px;
+    }
+}

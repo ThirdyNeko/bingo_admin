@@ -275,6 +275,42 @@
     transition: 0.2s ease;
 }
 
+/* Recolor Bootstrap blue (primary/info) to the indigo theme */
+#gamesTable .btn-primary,
+#gamesTable .btn-info {
+    background-color: #4f46e5;
+    border-color: #4f46e5;
+    color: #ffffff;
+}
+
+#gamesTable .btn-primary:hover,
+#gamesTable .btn-primary:focus,
+#gamesTable .btn-info:hover,
+#gamesTable .btn-info:focus {
+    background-color: #4338ca;
+    border-color: #4338ca;
+    color: #ffffff;
+    box-shadow: 0 5px 12px rgba(79, 70, 229, 0.2);
+}
+
+#gamesTable .btn-primary:active,
+#gamesTable .btn-info:active {
+    background-color: #3730a3;
+    border-color: #3730a3;
+}
+
+#gamesTable .btn-outline-primary {
+    color: #4f46e5;
+    border-color: #c7d2fe;
+    background: transparent;
+}
+
+#gamesTable .btn-outline-primary:hover {
+    background-color: #eef2ff;
+    border-color: #c7d2fe;
+    color: #4338ca;
+}
+
 #gamesTable .btn:hover,
 #gamesTable button:hover,
 #gamesTable a.btn:hover {

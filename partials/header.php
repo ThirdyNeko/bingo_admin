@@ -16,8 +16,11 @@ require_once 'auth/require_login.php';
     <link href="css/bootstrap.min.css" rel="stylesheet">
     <link href="bootstrap-icons/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="css/admin_layout.css" rel="stylesheet">
+    <?php foreach (($pageStyles ?? []) as $css): ?>
+    <link href="<?= htmlspecialchars($css) ?>" rel="stylesheet">
+    <?php endforeach; ?>
     <script src="js/bootstrap.bundle.min.js"></script>
 </head>
-<body>
+<body class="<?= htmlspecialchars($bodyClass ?? '') ?>">
 <div class="container-fluid">
 <div class="row">
